@@ -34,12 +34,20 @@ uv run python ../demo/test-data-generator.py
 - **AI-generated** keywords and descriptions via ByteDance Ark LLM
 - **Vector embeddings** for semantic similarity search
 - **Background processing** - no interruption to browsing
+- **Frequency tracking** with ARC-based visit analytics and page scoring
 
-### 🔍 **Dual Search System**
+### 🔍 **Intelligent Search System**
 - **Keyword search** with SQLite FTS5 full-text indexing
 - **Semantic search** using 1536-dimensional vector embeddings
-- **Unified API** combining both search methods with intelligent ranking
+- **Frequency-boosted ranking** for commonly accessed pages
+- **ARC-based relevance scoring** combining recency and access patterns
 - **Sub-100ms** response times with 600+ requests/second throughput
+
+### 🧠 **Memory Management**
+- **Adaptive Replacement Cache (ARC)** algorithm for intelligent page eviction
+- **Visit frequency tracking** with automatic count suppression
+- **Smart re-indexing** (only when content is >3 days old)
+- **Configurable storage limits** with automatic cleanup
 
 ### 🔒 **Privacy by Design**
 - **100% local storage** - no cloud syncing or external data sharing
@@ -81,8 +89,9 @@ graph TB
 | Component | Purpose | Technology |
 |-----------|---------|------------|
 | **API Server** | RESTful backend service | FastAPI + Uvicorn |
-| **Database** | Keyword indexing & storage | SQLite FTS5 |
+| **Database** | Keyword indexing & frequency tracking | SQLite FTS5 + ARC metadata |
 | **Vector Store** | Semantic similarity search | NumPy + Cosine similarity |
+| **ARC Cache** | Intelligent page eviction | Adaptive Replacement Cache algorithm |
 | **AI Client** | LLM processing & embeddings | ByteDance Ark APIs |
 | **Extension** | Browser integration | Chrome Manifest V3 |
 
@@ -99,13 +108,25 @@ POST /index
   "content": "Main page content..."
 }
 
-# Unified search (keyword + semantic)
+# Unified search (keyword + semantic + frequency)
 GET /search?q=machine+learning
 
-# Health check
-GET /health
+# Track page visits for frequency analytics
+POST /track-visit
+{
+  "url": "https://example.com"
+}
 
-# System statistics  
+# Get frequency analytics
+GET /analytics/frequency?days=30
+
+# Manual eviction management
+POST /eviction/run
+GET /eviction/preview?count=10
+GET /eviction/stats
+
+# Health check & system statistics
+GET /health
 GET /stats
 ```
 
@@ -130,9 +151,14 @@ uv run python demo/test_backend.py
 newtab/
 ├── backend/           # 🟢 Production Ready
 │   ├── main.py       # FastAPI application
-│   ├── database.py   # SQLite + FTS5 indexing
+│   ├── database.py   # SQLite + FTS5 + frequency tracking
 │   ├── vector_store.py # In-memory vector search
-│   └── api_client.py # ByteDance Ark integration
+│   ├── api_client.py # ByteDance Ark integration
+│   ├── models.py     # Pydantic models + frequency types
+│   └── arc/          # ARC-based eviction system
+│       ├── eviction.py    # Eviction policies
+│       ├── arc_cache.py   # ARC algorithm implementation
+│       └── utils.py       # Cache utilities
 ├── extension/        # 🟡 In Development
 │   ├── manifest.json # Chrome Extension config
 │   ├── newtab/      # New tab override UI
