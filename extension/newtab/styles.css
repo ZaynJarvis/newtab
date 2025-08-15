@@ -172,6 +172,16 @@ body {
   height: 18px;
   flex-shrink: 0;
   border-radius: 3px;
+  transition: opacity 0.2s ease;
+}
+
+.result-favicon.default-favicon {
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.result-favicon:not(.default-favicon) {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .result-title {

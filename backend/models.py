@@ -32,16 +32,9 @@ class SearchRequest(BaseModel):
     limit: int = Field(default=10, ge=1, le=100, description="Number of results to return")
 
 
-class KeywordSearchResponse(BaseModel):
-    """Model for keyword search results."""
-    results: List[PageResponse]
-    total_found: int
-    query: str
-
-
-class VectorSearchResponse(BaseModel):
-    """Model for vector search results."""
-    results: List[dict]  # PageResponse + similarity_score
+class UnifiedSearchResponse(BaseModel):
+    """Model for unified search results with server-controlled ranking."""
+    results: List[dict]  # PageResponse + relevance_score
     total_found: int
     query: str
 
@@ -52,15 +45,6 @@ class HealthResponse(BaseModel):
     timestamp: datetime
     database_connected: bool
     total_pages: int
-
-
-class CombinedSearchResponse(BaseModel):
-    """Model for combined search results."""
-    results: List[dict]  # PageResponse + combined_score + keyword_score + semantic_score
-    total_found: int
-    query: str
-    keyword_results_count: int
-    semantic_results_count: int
 
 
 class IndexResponse(BaseModel):

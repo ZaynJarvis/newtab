@@ -1,7 +1,13 @@
 # Backend API Documentation & Implementation Insights
 
 ## Overview
-The backend service is fully implemented and running on `http://localhost:8000`. It provides local indexing and search capabilities for the Chrome extension with AI-powered keyword generation and vector embeddings.
+The backend service is fully implemented and running on `http://localhost:8000`. It provides local indexing and intelligent search capabilities for the Chrome extension with AI-powered keyword generation, vector embeddings, and server-controlled result ranking.
+
+## 🚀 New in v2.0: Unified Search Architecture
+- **Single Search Endpoint**: `/search?q=query` replaces multiple search methods
+- **Server Intelligence**: Optimal 70% semantic + 30% keyword weighting
+- **Maximum 10 Results**: Curated, relevant results only
+- **AI-Powered**: LLM embeddings for semantic search quality
 
 ## API Endpoints
 
@@ -26,8 +32,8 @@ Response:
 - Generates keywords and descriptions via ByteDance Ark LLM
 - Creates vector embeddings for semantic search
 
-### 2. Keyword Search
-**GET** `/search/keyword?q=search+terms&limit=10`
+### 2. Unified Search 🔍
+**GET** `/search?q=your+query`
 ```json
 Response:
 {
@@ -40,27 +46,23 @@ Response:
       "keywords": "keyword1, keyword2, keyword3",
       "favicon_url": "https://example.com/favicon.ico",
       "created_at": "2025-01-15T10:00:00",
-      "score": 0.95
+      "relevance_score": 0.87
     }
   ],
-  "query": "search terms",
-  "total": 5
+  "query": "your query",
+  "total_found": 5
 }
 ```
-- Uses SQLite FTS5 for full-text search
-- BM25 ranking algorithm
-- Response time: <5ms
 
-### 3. Vector/Semantic Search
-**GET** `/search/vector?q=semantic+query&limit=10`
-```json
-Response: (same format as keyword search)
-```
-- Uses vector embeddings for semantic similarity
-- Cosine similarity scoring
-- Response time: <100ms
+**Key Features:**
+- **Server-Controlled Logic**: Optimal 70% semantic + 30% keyword weighting
+- **Maximum 10 Results**: Server enforces quality over quantity
+- **Parallel Processing**: Keyword and vector search executed simultaneously
+- **Smart Deduplication**: URL-based result merging with unified scoring
+- **LLM Embeddings**: ByteDance ARK for semantic understanding
+- **Response Time**: <100ms with parallel execution
 
-### 4. List All Pages
+### 3. List All Pages
 **GET** `/pages?limit=20&offset=0`
 ```json
 Response:
@@ -72,7 +74,7 @@ Response:
 }
 ```
 
-### 5. Get Single Page
+### 4. Get Single Page
 **GET** `/pages/{id}`
 ```json
 Response:
@@ -88,7 +90,7 @@ Response:
 }
 ```
 
-### 6. Delete Page
+### 5. Delete Page
 **DELETE** `/pages/{id}`
 ```json
 Response:
@@ -97,7 +99,7 @@ Response:
 }
 ```
 
-### 7. Health Check
+### 6. Health Check
 **GET** `/health`
 ```json
 Response:
@@ -107,7 +109,7 @@ Response:
 }
 ```
 
-### 8. Statistics
+### 7. Statistics
 **GET** `/stats`
 ```json
 Response:
@@ -124,6 +126,26 @@ The backend is configured with CORS to allow requests from Chrome extensions:
 - Allowed origins: All origins (`*`)
 - Allowed methods: GET, POST, DELETE, OPTIONS
 - Allowed headers: All headers
+
+## 🧠 Search Algorithm Details
+
+### Server-Side Intelligence
+The unified search endpoint implements sophisticated server-controlled logic:
+
+1. **Parallel Execution**: Keyword and vector searches run simultaneously
+2. **Smart Weighting**: 70% semantic relevance + 30% exact keyword matches
+3. **Result Deduplication**: URL-based merging with combined scoring
+4. **Quality Control**: Maximum 10 results for focused, relevant responses
+5. **Fallback Handling**: Graceful degradation if vector search unavailable
+
+### Scoring Algorithm
+```
+Relevance Score = (Vector Similarity × 0.7) + (Keyword Ranking × 0.3)
+```
+
+- **Vector Similarity**: Cosine similarity from LLM embeddings (0-1)
+- **Keyword Ranking**: Position-based scoring from FTS5 results (1.0 to 0.1)
+- **Final Score**: Weighted combination rounded to 4 decimal places
 
 ## Key Implementation Details
 
@@ -156,11 +178,11 @@ The backend is configured with CORS to allow requests from Chrome extensions:
   - Dimensions: 1536
 
 ### Performance Characteristics
-- Indexing: ~3-10ms response (AI processing in background)
-- Keyword search: <5ms
-- Vector search: <100ms
-- Can handle 1000+ documents efficiently
-- Memory usage: ~0.06MB per 1000 vectors
+- **Indexing**: ~3-10ms response (AI processing in background)
+- **Unified Search**: <100ms with parallel processing
+- **Throughput**: 1000+ documents efficiently indexed and searched
+- **Memory Usage**: ~0.06MB per 1000 vectors
+- **Result Quality**: Server-curated maximum 10 results
 
 ### Error Handling
 - Automatic retry logic for AI API calls (3 retries with exponential backoff)
@@ -219,8 +241,9 @@ This will:
 2. Service worker sends POST /index with page data
 3. Backend returns immediately with page ID
 4. User opens new tab, types in search box
-5. Extension calls GET /search/keyword or /search/vector
-6. Results displayed in new tab interface
+5. Extension calls GET /search with query parameter
+6. Server processes with optimal keyword+semantic mixing
+7. Results displayed in new tab interface (max 10 results)
 
 ### Security Considerations:
 - All data stored locally (no cloud sync)
@@ -231,28 +254,41 @@ This will:
 ## File Structure
 ```
 backend/
-├── main.py              # FastAPI application
-├── models.py            # Pydantic data models
+├── main.py              # FastAPI application with unified search
+├── models.py            # Pydantic models (UnifiedSearchResponse)
 ├── database.py          # SQLite + FTS5 operations
 ├── vector_store.py      # In-memory vector operations
 ├── api_client.py        # ByteDance Ark API client
 ├── requirements.txt     # Python dependencies
-└── local_web_memory.db  # SQLite database (created on first run)
+└── web_memory.db        # SQLite database (created on first run)
 ```
 
 ## Dependencies
-- FastAPI: Web framework
-- SQLite3: Database with FTS5
-- NumPy: Vector operations
-- HTTPX: Async HTTP client
-- Pydantic: Data validation
-- Python 3.11+
+- **FastAPI**: Modern web framework with OpenAPI 3.1 support
+- **SQLite3**: Database with FTS5 for full-text search
+- **NumPy**: Vector operations and similarity calculations
+- **HTTPX**: Async HTTP client for LLM API calls
+- **Pydantic**: Data validation and response models
+- **Python**: 3.11+ with asyncio support
 
-## Next Steps for Extension Development
-1. Create Manifest V3 extension structure
-2. Implement content script for DOM extraction
-3. Build service worker for API communication
-4. Create new tab override with search UI
-5. Test end-to-end integration with backend
+## 🎯 Migration from v1.0 to v2.0
 
-The backend is production-ready and waiting for extension integration!
+### Breaking Changes
+- **Removed Endpoints**: `/search/keyword`, `/search/vector`, `/search/combined`
+- **New Unified Endpoint**: `/search?q=query`
+- **Server-Controlled Parameters**: No client-side weight or limit parameters
+- **Response Format**: Single `relevance_score` instead of separate scores
+
+### Benefits
+- **Simplified Integration**: Single search endpoint for all query types
+- **Better Performance**: Server-optimized ranking and parallel processing
+- **Consistent Results**: Maximum 10 results across all searches
+- **Future-Proof**: Server can optimize algorithm without client changes
+
+## 🚀 Production Ready
+The backend v2.0 is production-ready with:
+- ✅ Modern OpenAPI 3.1 documentation
+- ✅ Comprehensive error handling
+- ✅ Server-controlled search intelligence
+- ✅ Chrome extension integration
+- ✅ AI-powered semantic search

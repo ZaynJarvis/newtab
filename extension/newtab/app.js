@@ -1,6 +1,6 @@
 // New tab page app
 const BACKEND_URL = 'http://localhost:8000';
-let currentSearchType = 'combined'; // Use combined search by default
+// Removed currentSearchType - server now controls all search logic
 let excludedDomains = [];
 let selectedIndex = -1;
 let searchResults = [];
@@ -17,14 +17,143 @@ document.addEventListener('DOMContentLoaded', () => {
     openSettings();
   }
   
-  // Force focus on search input with delay to work around Chrome security
-  setTimeout(() => {
-    const searchInput = document.getElementById('searchInput');
-    if (searchInput) {
-      searchInput.focus();
-    }
-  }, 100);
+  // Robust focus implementation to handle Chrome's security restrictions
+  focusSearchInput();
 });
+
+// Robust focus implementation with multiple strategies
+function focusSearchInput() {
+  const searchInput = document.getElementById('searchInput');
+  if (!searchInput) return;
+
+  let focusAttempts = 0;
+  const maxAttempts = 10;
+  const focusTimeouts = [0, 10, 50, 100, 200, 300, 500, 750, 1000, 1500];
+
+  function attemptFocus() {
+    if (focusAttempts >= maxAttempts) return;
+    
+    try {
+      // Only attempt focus if the input is not already focused
+      if (document.activeElement !== searchInput) {
+        searchInput.focus();
+        
+        // Verify focus was successful
+        if (document.activeElement === searchInput) {
+          console.log(`Search input focused successfully on attempt ${focusAttempts + 1}`);
+          return; // Success, stop attempting
+        }
+      } else {
+        // Already focused
+        return;
+      }
+    } catch (error) {
+      console.warn(`Focus attempt ${focusAttempts + 1} failed:`, error);
+    }
+    
+    focusAttempts++;
+    
+    // Schedule next attempt if we haven't exceeded max attempts
+    if (focusAttempts < maxAttempts) {
+      setTimeout(attemptFocus, focusTimeouts[focusAttempts]);
+    }
+  }
+
+  // Start first attempt immediately
+  attemptFocus();
+
+  // Use Page Visibility API to detect when tab becomes active
+  function handleVisibilityChange() {
+    if (!document.hidden && document.visibilityState === 'visible') {
+      // Reset attempts counter when tab becomes visible
+      focusAttempts = 0;
+      setTimeout(() => {
+        if (document.activeElement !== searchInput && !isSettingsOpen()) {
+          attemptFocus();
+        }
+      }, 50);
+    }
+  }
+
+  // Listen for visibility changes
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+
+  // Also listen for window focus events as a fallback
+  window.addEventListener('focus', () => {
+    setTimeout(() => {
+      if (document.activeElement !== searchInput && !isSettingsOpen()) {
+        focusAttempts = 0;
+        attemptFocus();
+      }
+    }, 50);
+  });
+
+  // Handle page show event (when navigating back to the tab)
+  window.addEventListener('pageshow', () => {
+    setTimeout(() => {
+      if (document.activeElement !== searchInput && !isSettingsOpen()) {
+        focusAttempts = 0;
+        attemptFocus();
+      }
+    }, 50);
+  });
+
+  // Handle browser back/forward navigation
+  window.addEventListener('popstate', () => {
+    setTimeout(() => {
+      if (document.activeElement !== searchInput && !isSettingsOpen()) {
+        focusAttempts = 0;
+        attemptFocus();
+      }
+    }, 50);
+  });
+
+  // Additional safety net: check focus periodically if document becomes active
+  let focusCheckInterval;
+  
+  function startFocusCheck() {
+    if (focusCheckInterval) clearInterval(focusCheckInterval);
+    
+    focusCheckInterval = setInterval(() => {
+      // Only check if document is visible and settings are not open
+      if (!document.hidden && 
+          document.visibilityState === 'visible' && 
+          !isSettingsOpen() && 
+          document.activeElement !== searchInput &&
+          document.activeElement.tagName !== 'INPUT' && 
+          document.activeElement.tagName !== 'TEXTAREA') {
+        
+        focusAttempts = 0;
+        attemptFocus();
+        clearInterval(focusCheckInterval); // Stop checking once we attempt to focus
+      }
+    }, 1000);
+    
+    // Clear interval after 10 seconds to avoid running indefinitely
+    setTimeout(() => {
+      if (focusCheckInterval) {
+        clearInterval(focusCheckInterval);
+        focusCheckInterval = null;
+      }
+    }, 10000);
+  }
+
+  // Start focus checking when page becomes visible
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && document.visibilityState === 'visible') {
+      startFocusCheck();
+    } else if (focusCheckInterval) {
+      clearInterval(focusCheckInterval);
+      focusCheckInterval = null;
+    }
+  });
+}
+
+// Helper function to check if settings panel is open
+function isSettingsOpen() {
+  const settingsView = document.getElementById('settingsView');
+  return settingsView && settingsView.classList.contains('open');
+}
 
 // Event Listeners
 function initializeEventListeners() {
@@ -33,6 +162,43 @@ function initializeEventListeners() {
   
   searchInput.addEventListener('input', debounce(handleSearch, 300));
   searchInput.addEventListener('keydown', handleKeyNavigation);
+  
+  // Focus search input when clicking on empty areas of the page
+  document.addEventListener('click', (e) => {
+    // Only refocus if not clicking on interactive elements and settings are closed
+    const isInteractiveElement = e.target.matches('button, a, input, textarea, select, [role="button"], [tabindex]') ||
+                                 e.target.closest('button, a, input, textarea, select, [role="button"], [tabindex]');
+    
+    if (!isInteractiveElement && !isSettingsOpen()) {
+      setTimeout(() => {
+        if (!isSettingsOpen() && document.activeElement !== searchInput) {
+          searchInput.focus();
+        }
+      }, 10);
+    }
+  });
+  
+  // Focus search input on key press (except when typing in other inputs)
+  document.addEventListener('keydown', (e) => {
+    // Don't interfere if user is typing in an input field or settings are open
+    if (document.activeElement.tagName === 'INPUT' || 
+        document.activeElement.tagName === 'TEXTAREA' ||
+        isSettingsOpen()) {
+      return;
+    }
+    
+    // Focus search input for alphanumeric keys, space, and backspace
+    if ((e.key.length === 1 && e.key.match(/[\w\s]/)) || e.key === 'Backspace') {
+      searchInput.focus();
+      
+      // For backspace, also clear the last character if search has content
+      if (e.key === 'Backspace' && searchInput.value.length > 0) {
+        e.preventDefault();
+        searchInput.value = searchInput.value.slice(0, -1);
+        handleSearch(); // Trigger search with updated value
+      }
+    }
+  });
   
   // Settings
   document.getElementById('settingsToggle').addEventListener('click', openSettings);
@@ -67,12 +233,22 @@ function handleKeyNavigation(e) {
     if (selectedCard) {
       const link = selectedCard.querySelector('.result-title');
       if (link) {
-        window.open(link.href, '_blank');
+        if (e.metaKey || e.ctrlKey) {
+          // Cmd/Ctrl+Enter: open in new tab
+          window.open(link.href, '_blank');
+        } else {
+          // Regular Enter: open in current tab
+          window.location.href = link.href;
+        }
       }
     }
   } else if (e.key === 'Escape') {
     selectedIndex = -1;
     updateSelection(resultCards);
+    // Ensure search input stays focused after escape
+    if (document.activeElement !== e.target) {
+      e.target.focus();
+    }
   }
 }
 
@@ -110,11 +286,10 @@ async function handleSearch() {
   `;
   
   try {
-    // Use service worker to search
+    // Use service worker to search with new unified endpoint
     const response = await chrome.runtime.sendMessage({
       type: 'SEARCH',
-      query: query,
-      searchType: currentSearchType
+      query: query
     });
     
     if (response.success && response.results.length > 0) {
@@ -142,19 +317,34 @@ async function handleSearch() {
   }
 }
 
+
+// Favicon fallback handling with proper infinite loop prevention
+function handleFaviconError(imgElement) {
+  // Clear any existing error handler
+  imgElement.onerror = null;
+  
+  // Use a base64 encoded default icon to avoid any loading issues
+  const defaultIconBase64 = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjE2IiBoZWlnaHQ9IjE2IiByeD0iMyIgZmlsbD0iIzM3NDAzZiIvPgo8cGF0aCBkPSJNOCA0QzUuNzkgNCA0IDUuNzkgNCA4czEuNzkgNCA0IDQgNC0xLjc5IDQtNC0xLjc5LTQtNC00em0wIDZjLTEuMSAwLTItLjktMi0yczAuOS0yIDItMiAyIDAuOSAyIDItMC45IDItMiAyeiIgZmlsbD0iI2ZmZiIvPgo8L3N2Zz4K';
+  imgElement.src = defaultIconBase64;
+  imgElement.classList.add('default-favicon');
+  imgElement.alt = 'Default favicon';
+}
+
+
 // Display search results
 function displayResults(results) {
   const resultsContainer = document.getElementById('searchResults');
   
   const html = results.map((result, index) => {
     const keywords = result.keywords ? result.keywords.split(',').slice(0, 5) : [];
-    const faviconUrl = result.favicon_url || `https://www.google.com/s2/favicons?domain=${new URL(result.url).hostname}`;
+    const domain = new URL(result.url).hostname;
+    let faviconUrl = result.favicon_url || `https://www.google.com/s2/favicons?domain=${domain}`;
     
     return `
-      <div class="result-card" data-id="${result.id}" data-index="${index}">
-        <div class="result-main" onclick="window.open('${result.url}', '_blank')">
+      <div class="result-card" data-id="${result.id}" data-index="${index}" data-url="${escapeHtml(result.url)}">
+        <div class="result-main">
           <div class="result-header">
-            <img src="${faviconUrl}" alt="" class="result-favicon" onerror="this.style.display='none'">
+            <img src="${faviconUrl}" alt="" class="result-favicon">
             <a href="${result.url}" target="_blank" class="result-title">${escapeHtml(result.title)}</a>
           </div>
           <div class="result-url">${escapeHtml(result.url)}</div>
@@ -165,7 +355,7 @@ function displayResults(results) {
             </div>
           ` : ''}
         </div>
-        <button class="result-delete" onclick="deleteResult(${result.id})" title="Delete this entry">
+        <button class="result-delete" data-id="${result.id}" title="Delete this entry">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="3,6 5,6 21,6"></polyline>
             <path d="m19,6v14a2,2 0,0 1,-2,2H7a2,2 0,0 1,-2,-2V6m3,0V4a2,2 0,0 1,2,-2h4a2,2 0,0 1,2,2V6"></path>
@@ -179,14 +369,43 @@ function displayResults(results) {
   
   resultsContainer.innerHTML = html;
   
-  // Add click listeners to result cards for keyboard navigation support
-  const resultCards = resultsContainer.querySelectorAll('.result-card');
-  resultCards.forEach((card, index) => {
-    card.addEventListener('mouseenter', () => {
-      selectedIndex = index;
-      updateSelection(resultCards);
+  // Auto-focus the first result when results appear
+  if (results.length > 0) {
+    selectedIndex = 0;
+    const resultCards = resultsContainer.querySelectorAll('.result-card');
+    updateSelection(resultCards);
+    
+    // Add event listeners to result cards
+    resultCards.forEach((card, index) => {
+      // Mouse hover for keyboard navigation support
+      card.addEventListener('mouseenter', () => {
+        selectedIndex = index;
+        updateSelection(resultCards);
+      });
+      
+      // Click handler for result main area
+      const mainArea = card.querySelector('.result-main');
+      mainArea.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = card.dataset.url;
+        window.open(url, '_blank');
+      });
+      
+      // Delete button click handler
+      const deleteBtn = card.querySelector('.result-delete');
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = parseInt(deleteBtn.dataset.id);
+        deleteResult(id);
+      });
+      
+      // Favicon error handler
+      const favicon = card.querySelector('.result-favicon');
+      favicon.addEventListener('error', () => {
+        handleFaviconError(favicon);
+      });
     });
-  });
+  }
 }
 
 // Delete a result
@@ -229,6 +448,11 @@ function openSettings() {
 function closeSettings() {
   document.getElementById('settingsView').classList.remove('open');
   window.location.hash = '';
+  
+  // Refocus search input after closing settings
+  setTimeout(() => {
+    focusSearchInput();
+  }, 100);
 }
 
 async function loadSettings() {
@@ -270,9 +494,17 @@ function updateExcludedDomainsList() {
   container.innerHTML = excludedDomains.map(domain => `
     <div class="domain-item">
       <span>${escapeHtml(domain)}</span>
-      <button class="remove-domain" onclick="removeDomain('${escapeHtml(domain)}')">×</button>
+      <button class="remove-domain" data-domain="${escapeHtml(domain)}">×</button>
     </div>
   `).join('');
+  
+  // Add event listeners for remove buttons
+  container.querySelectorAll('.remove-domain').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const domain = btn.dataset.domain;
+      removeDomain(domain);
+    });
+  });
 }
 
 async function addExcludedDomain() {
@@ -394,7 +626,7 @@ async function loadStatistics() {
     const response = await fetch(`${BACKEND_URL}/stats`);
     const stats = await response.json();
     
-    document.getElementById('totalPages').textContent = stats.total_pages.toLocaleString();
+    document.getElementById('totalPages').textContent = (stats.database?.total_pages || stats.total_pages || 0).toLocaleString();
     
   } catch (error) {
     console.error('Error loading statistics:', error);
@@ -411,19 +643,19 @@ async function loadDetailedStatistics() {
     container.innerHTML = `
       <div class="stat-item">
         <span class="label">Total Pages</span>
-        <span class="value">${stats.total_pages}</span>
+        <span class="value">${stats.database?.total_pages || stats.total_pages || 0}</span>
       </div>
       <div class="stat-item">
         <span class="label">Vectors Stored</span>
-        <span class="value">${stats.total_vectors}</span>
+        <span class="value">${stats.vector_store?.total_vectors || stats.total_vectors || 0}</span>
       </div>
       <div class="stat-item">
         <span class="label">Memory Usage</span>
-        <span class="value">${stats.memory_usage_mb.toFixed(2)} MB</span>
+        <span class="value">${(stats.vector_store?.memory_usage_mb || stats.memory_usage_mb || 0).toFixed(2)} MB</span>
       </div>
       <div class="stat-item">
         <span class="label">Vector Dimensions</span>
-        <span class="value">${stats.vector_dimensions}</span>
+        <span class="value">${stats.vector_store?.dimension || stats.vector_dimensions || 0}</span>
       </div>
     `;
     
@@ -468,9 +700,7 @@ function escapeHtml(text) {
   return text.replace(/[&<>"']/g, m => map[m]);
 }
 
-// Make functions available globally for onclick handlers
-window.deleteResult = deleteResult;
-window.removeDomain = removeDomain;
+// Functions no longer need to be global since we use proper event listeners
 
 // Add fade out animation
 const style = document.createElement('style');

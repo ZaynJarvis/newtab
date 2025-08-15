@@ -26,7 +26,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     getIndexingStatus().then(sendResponse);
     return true;
   } else if (request.type === 'SEARCH') {
-    handleSearch(request.query, request.searchType).then(sendResponse);
+    handleSearch(request.query).then(sendResponse);
     return true;
   }
 });
@@ -103,11 +103,10 @@ async function handlePageIndexing(pageData, tab, sendResponse) {
 }
 
 // Handle search requests
-async function handleSearch(query, searchType = 'combined') {
+async function handleSearch(query) {
   try {
-    // Use the new combined search endpoint which does weighted search (60% keyword, 40% semantic)
-    const endpoint = 'search/combined';
-    const response = await fetch(`${BACKEND_URL}/${endpoint}?query=${encodeURIComponent(query)}&limit=20`);
+    // Use the new unified search endpoint with server-controlled logic
+    const response = await fetch(`${BACKEND_URL}/search?q=${encodeURIComponent(query)}`);
     
     if (!response.ok) {
       throw new Error(`Search failed: ${response.status}`);
