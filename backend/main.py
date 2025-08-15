@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 
 from models import (
     PageCreate, PageResponse, SearchRequest, UnifiedSearchResponse,
-    HealthResponse, IndexResponse
+    HealthResponse, IndexResponse, VisitTrackingRequest, FrequencyAnalyticsResponse
 )
 from database import Database
 from vector_store import VectorStore
@@ -217,8 +217,25 @@ async def index_page(page: PageCreate, background_tasks: BackgroundTasks):
     start_time = time.time()
     
     try:
-        # Insert page with basic data first
+        # Check if URL needs re-indexing
+        needs_reindex, existing_id = db.check_needs_reindex(page.url)
+        
+        if existing_id and not needs_reindex:
+            # URL exists and doesn't need re-indexing, just update visit count
+            db.update_visit_metrics(existing_id)
+            
+            return IndexResponse(
+                id=existing_id,
+                status="already_indexed",
+                message="Page already indexed recently. Visit count updated.",
+                processing_time=round((time.time() - start_time) * 1000, 2)
+            )
+        
+        # Insert or update page
         page_id = db.insert_page(page)
+        
+        # Update index time
+        db.update_page_index_time(page_id)
         
         # Schedule AI processing in background
         background_tasks.add_task(process_page_ai, page_id, page)
@@ -227,7 +244,7 @@ async def index_page(page: PageCreate, background_tasks: BackgroundTasks):
         
         return IndexResponse(
             id=page_id,
-            status="indexed",
+            status="indexed" if not existing_id else "re-indexed",
             message="Page indexed successfully. AI processing in progress.",
             processing_time=round(processing_time * 1000, 2)  # Convert to milliseconds
         )
@@ -244,6 +261,94 @@ async def index_page(page: PageCreate, background_tasks: BackgroundTasks):
 
 
 
+
+
+@app.post("/track-visit", response_model=dict, tags=["tracking"])
+async def track_visit(visit_data: VisitTrackingRequest):
+    """Track a page visit and update frequency metrics."""
+    try:
+        # Find existing page or create placeholder
+        page_id = db.find_or_create_page_for_tracking(visit_data.url)
+        
+        if not page_id:
+            raise HTTPException(status_code=404, detail="Could not find or create page for tracking")
+        
+        # Update visit metrics (includes count suppression check)
+        success = db.update_visit_metrics(page_id, suppress_counts=True)
+        
+        if success:
+            # Check if eviction is needed (every 100th visit to avoid overhead)
+            import random
+            if random.randint(1, 100) == 1:  # 1% chance to check eviction
+                eviction_result = db.check_and_evict_pages()
+                if eviction_result['evicted_count'] > 0:
+                    print(f"🧹 Auto-evicted {eviction_result['evicted_count']} pages during visit tracking")
+            
+            return {
+                "status": "success",
+                "page_id": page_id,
+                "message": "Visit tracked successfully"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to track visit")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Visit tracking failed: {str(e)}")
+
+
+@app.get("/analytics/frequency", response_model=FrequencyAnalyticsResponse, tags=["analytics"])
+async def get_frequency_analytics(days: int = 30):
+    """Get frequency and visit analytics."""
+    try:
+        from datetime import timedelta
+        cutoff_date = datetime.now() - timedelta(days=days)
+        
+        with db.get_connection() as conn:
+            # Total visits
+            total_visits = conn.execute("""
+                SELECT SUM(visit_count) as total
+                FROM pages
+                WHERE last_visited >= ?
+            """, (cutoff_date,)).fetchone()['total'] or 0
+            
+            # Unique pages visited
+            unique_pages = conn.execute("""
+                SELECT COUNT(*) as count
+                FROM pages
+                WHERE last_visited >= ? AND visit_count > 0
+            """, (cutoff_date,)).fetchone()['count']
+            
+            # Most visited pages
+            most_visited = conn.execute("""
+                SELECT url, title, visit_count, last_visited
+                FROM pages
+                WHERE last_visited >= ? AND visit_count > 0
+                ORDER BY visit_count DESC
+                LIMIT 10
+            """, (cutoff_date,)).fetchall()
+            
+            # Recent activity
+            recent_activity = conn.execute("""
+                SELECT url, title, last_visited, visit_count
+                FROM pages
+                WHERE last_visited >= ?
+                ORDER BY last_visited DESC
+                LIMIT 20
+            """, (cutoff_date,)).fetchall()
+            
+            return FrequencyAnalyticsResponse(
+                total_visits=total_visits,
+                unique_pages=unique_pages,
+                avg_visits_per_page=total_visits / max(unique_pages, 1),
+                most_visited_pages=[dict(row) for row in most_visited],
+                recent_activity=[dict(row) for row in recent_activity],
+                access_patterns={
+                    "period_days": days,
+                    "daily_average": total_visits / days if days > 0 else 0
+                }
+            )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Analytics failed: {str(e)}")
 
 
 @app.get("/search", response_model=UnifiedSearchResponse, tags=["search"])
@@ -358,18 +463,45 @@ async def unified_search(q: str):
                 result['relevance_score'] = vector_score * VECTOR_WEIGHT
                 url_to_result[url] = result
         
-        # Sort by relevance score and limit to MAX_RESULTS
+        # Apply ARC-based re-ranking with visit count
         final_results = list(url_to_result.values())
-        final_results.sort(key=lambda x: x['relevance_score'], reverse=True)
+        
+        # Calculate combined scores including frequency metrics
+        for result in final_results:
+            # Get frequency metrics from result (already included from database)
+            visit_count = result.get('visit_count', 0)
+            arc_score = result.get('arc_score', 0.0)
+            relevance_score = result.get('relevance_score', 0.0)
+            
+            # For high relevance results, boost with visit frequency
+            if relevance_score > 0.3:  # Only boost above similarity threshold
+                # Normalize visit count for boosting (max boost of 20%)
+                frequency_boost = min(visit_count / 50.0, 0.2)  # Cap at 20% boost
+                arc_boost = arc_score * 0.1  # ARC score contributes up to 10% boost
+                
+                # Apply frequency boost to highly relevant results
+                result['final_score'] = relevance_score * (1.0 + frequency_boost + arc_boost)
+            else:
+                result['final_score'] = relevance_score
+            
+            # Keep individual scores for debugging
+            result['frequency_boost'] = min(visit_count / 50.0, 0.2) if relevance_score > 0.3 else 0.0
+            result['arc_boost'] = arc_score * 0.1 if relevance_score > 0.3 else 0.0
+        
+        # Sort by combined final score and limit to MAX_RESULTS
+        final_results.sort(key=lambda x: x['final_score'], reverse=True)
         final_results = final_results[:MAX_RESULTS]
         
-        # Clean up results for response - keep only relevance_score
+        # Clean up results for response
         for result in final_results:
-            result['relevance_score'] = round(result['relevance_score'], 4)
-            # Remove internal scoring fields
+            result['relevance_score'] = round(result.get('final_score', 0.0), 4)
+            # Remove internal scoring fields but keep frequency info for debugging
             result.pop('keyword_score', None)
             result.pop('vector_score', None)
             result.pop('vector_similarity', None)
+            result.pop('final_score', None)
+            result.pop('frequency_boost', None)
+            result.pop('arc_boost', None)
         
         return UnifiedSearchResponse(
             results=final_results,
@@ -451,6 +583,46 @@ async def get_stats():
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get stats: {str(e)}")
+
+
+@app.post("/eviction/run", response_model=dict, tags=["eviction"])
+async def run_eviction():
+    """Manually trigger eviction process."""
+    try:
+        result = db.check_and_evict_pages()
+        return {
+            "status": "completed",
+            "evicted_count": result["evicted_count"],
+            "total_pages": result["total_pages"],
+            "candidates_found": result["candidates_found"],
+            "message": f"Evicted {result['evicted_count']} pages"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Eviction failed: {str(e)}")
+
+
+@app.get("/eviction/preview", response_model=dict, tags=["eviction"])
+async def preview_eviction_candidates(count: int = 10):
+    """Preview pages that would be evicted."""
+    try:
+        candidates = db.get_eviction_candidates_preview(count)
+        return {
+            "candidates": candidates,
+            "count": len(candidates),
+            "message": f"Found {len(candidates)} eviction candidates"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Preview failed: {str(e)}")
+
+
+@app.get("/eviction/stats", response_model=dict, tags=["eviction"])
+async def get_eviction_stats():
+    """Get eviction statistics and distribution analysis."""
+    try:
+        stats = db.get_eviction_stats()
+        return stats
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Stats failed: {str(e)}")
 
 
 if __name__ == "__main__":

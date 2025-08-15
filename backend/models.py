@@ -24,6 +24,16 @@ class PageResponse(BaseModel):
     favicon_url: Optional[str]
     created_at: datetime
     vector_embedding: Optional[List[float]] = None
+    
+    # Frequency tracking fields
+    visit_count: int = 0
+    first_visited: Optional[datetime] = None
+    last_visited: Optional[datetime] = None
+    indexed_at: Optional[datetime] = None
+    last_updated_at: Optional[datetime] = None
+    access_frequency: float = 0.0
+    recency_score: float = 0.0
+    arc_score: float = 0.0
 
 
 class SearchRequest(BaseModel):
@@ -53,3 +63,20 @@ class IndexResponse(BaseModel):
     status: str
     message: str
     processing_time: float
+
+
+class VisitTrackingRequest(BaseModel):
+    """Model for visit tracking requests."""
+    url: str = Field(..., description="URL that was visited")
+    visit_duration: Optional[int] = Field(None, description="Time spent on page in seconds")
+    interaction_type: str = Field("view", description="Type of interaction: view, click, search")
+
+
+class FrequencyAnalyticsResponse(BaseModel):
+    """Model for frequency analytics response."""
+    total_visits: int
+    unique_pages: int
+    avg_visits_per_page: float
+    most_visited_pages: List[dict]
+    recent_activity: List[dict]
+    access_patterns: dict
