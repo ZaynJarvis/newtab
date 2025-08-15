@@ -272,6 +272,11 @@ async def unified_search(q: str):
     KEYWORD_WEIGHT = 0.3
     MIN_SIMILARITY = 0.1
     
+    # Advanced filtering parameters
+    ENABLE_SMART_CUTOFF = True
+    SIMILARITY_DROP_THRESHOLD = 0.15  # Detect 15% similarity drops
+    MIN_CLUSTER_SCORE = 0.25  # Minimum score for clustering analysis
+    
     try:
         # Define async functions for parallel execution
         async def get_keyword_results():
@@ -292,8 +297,14 @@ async def unified_search(q: str):
                 # Generate embedding for query
                 query_vector = await ark_client.generate_embedding(q)
                 
-                # Search in vector store
-                vector_results = vector_store.search(query_vector, MAX_RESULTS * 2, MIN_SIMILARITY)
+                # Search in vector store with advanced filtering
+                vector_results = vector_store.search(
+                    query_vector, 
+                    MAX_RESULTS * 2, 
+                    MIN_SIMILARITY,
+                    enable_clustering=ENABLE_SMART_CUTOFF,
+                    similarity_drop_threshold=SIMILARITY_DROP_THRESHOLD
+                )
                 
                 # Format results with similarity scores
                 formatted_results = []

@@ -291,16 +291,8 @@
       <h2>Search Test</h2>
       <div class="search-type">
         <label>
-          <input type="radio" name="searchType" value="combined" checked>
-          Combined Search (Default)
-        </label>
-        <label>
-          <input type="radio" name="searchType" value="keyword">
-          Keyword Search
-        </label>
-        <label>
-          <input type="radio" name="searchType" value="vector">
-          Semantic Search
+          <input type="radio" name="searchType" value="unified" checked>
+          Unified Search (70% Semantic + 30% Keyword)
         </label>
       </div>
       <div class="search-container">
@@ -337,7 +329,7 @@
 
   <script>
     const BACKEND_URL = 'http://localhost:8000';
-    let currentSearchType = 'combined';
+    let currentSearchType = 'unified';
     let lastPageId = null;
 
     // Initialize
@@ -355,7 +347,7 @@
       document.querySelectorAll('input[name="searchType"]').forEach(radio => {
         radio.addEventListener('change', (e) => {
           currentSearchType = e.target.value;
-          logToConsole(`Switched to ${currentSearchType} search`, 'info');
+          logToConsole(`Using ${currentSearchType} search (v2.0 unified endpoint)`, 'info');
         });
       });
     }
@@ -396,17 +388,10 @@
       resultsDiv.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>Searching...</p></div>';
 
       try {
-        let endpoint;
-        if (currentSearchType === 'vector') {
-          endpoint = 'search/vector';
-        } else if (currentSearchType === 'keyword') {
-          endpoint = 'search/keyword';
-        } else {
-          endpoint = 'search/combined';
-        }
-        logToConsole(`Performing ${currentSearchType} search for: "${query}"`, 'info');
+        // v2.0 uses unified search endpoint for all search types
+        logToConsole(`Performing unified search for: "${query}"`, 'info');
         
-        const response = await fetch(`${BACKEND_URL}/${endpoint}?query=${encodeURIComponent(query)}&limit=20`);
+        const response = await fetch(`${BACKEND_URL}/search?q=${encodeURIComponent(query)}`);
         
         if (!response.ok) {
           throw new Error(`Search failed: ${response.status} ${response.statusText}`);
@@ -441,7 +426,7 @@
                 ${keywords.map(k => `<span class="keyword-tag">${escapeHtml(k.trim())}</span>`).join('')}
               </div>
             ` : ''}
-            ${result.similarity_score ? `<div style="color: #666; font-size: 12px; margin-top: 5px;">Similarity: ${result.similarity_score}</div>` : ''}
+            ${result.relevance_score ? `<div style="color: #666; font-size: 12px; margin-top: 5px;">Relevance: ${result.relevance_score}</div>` : ''}
           </div>
         `;
       }).join('');
@@ -499,38 +484,38 @@
     }
 
     async function testCombinedSearch() {
-      logToConsole('Testing combined search for "programming"...', 'info');
+      logToConsole('Testing unified search for "programming"...', 'info');
       try {
-        const response = await fetch(`${BACKEND_URL}/search/combined?query=programming&limit=5`);
+        const response = await fetch(`${BACKEND_URL}/search?q=programming`);
         const data = await response.json();
-        logToConsole(`Combined search found ${data.results.length} results`, 'success');
+        logToConsole(`Unified search found ${data.results.length} results`, 'success');
         displayResults(data.results);
       } catch (error) {
-        logToConsole(`Combined search failed: ${error.message}`, 'error');
+        logToConsole(`Unified search failed: ${error.message}`, 'error');
       }
     }
 
     async function testKeywordSearch() {
-      logToConsole('Testing keyword search for "Python"...', 'info');
+      logToConsole('Testing unified search for "Python"...', 'info');
       try {
-        const response = await fetch(`${BACKEND_URL}/search/keyword?query=Python&limit=5`);
+        const response = await fetch(`${BACKEND_URL}/search?q=Python`);
         const data = await response.json();
-        logToConsole(`Keyword search found ${data.total_found} results`, 'success');
+        logToConsole(`Unified search found ${data.total_found} results`, 'success');
         displayResults(data.results);
       } catch (error) {
-        logToConsole(`Keyword search failed: ${error.message}`, 'error');
+        logToConsole(`Unified search failed: ${error.message}`, 'error');
       }
     }
 
     async function testVectorSearch() {
-      logToConsole('Testing vector search for "machine learning"...', 'info');
+      logToConsole('Testing unified search for "machine learning"...', 'info');
       try {
-        const response = await fetch(`${BACKEND_URL}/search/vector?query=machine%20learning&limit=5`);
+        const response = await fetch(`${BACKEND_URL}/search?q=machine%20learning`);
         const data = await response.json();
-        logToConsole(`Vector search found ${data.total_found} results`, 'success');
+        logToConsole(`Unified search found ${data.total_found} results`, 'success');
         displayResults(data.results);
       } catch (error) {
-        logToConsole(`Vector search failed: ${error.message}`, 'error');
+        logToConsole(`Unified search failed: ${error.message}`, 'error');
       }
     }
 

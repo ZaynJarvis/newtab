@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Favicon Fallback Test</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a1a;
+      color: #ffffff;
+      padding: 20px;
+      margin: 0;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      color: #60a5fa;
+      margin-bottom: 30px;
+    }
+    
+    .test-section {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .test-case {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 15px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 6px;
+    }
+    
+    .test-favicon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      border-radius: 3px;
+      transition: opacity 0.2s ease;
+    }
+    
+    .test-favicon.default-favicon {
+      border-radius: 3px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+    
+    .test-favicon:not(.default-favicon) {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .test-description {
+      flex: 1;
+      color: #a0a0a0;
+    }
+    
+    .status {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .status.pending {
+      background: rgba(251, 191, 36, 0.2);
+      color: #fbbf24;
+    }
+    
+    .status.pass {
+      background: rgba(16, 185, 129, 0.2);
+      color: #10b981;
+    }
+    
+    .status.fail {
+      background: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+    }
+    
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin: 10px 10px 10px 0;
+    }
+    
+    button:hover {
+      background: #5a67d8;
+    }
+    
+    .console {
+      background: #0f0f0f;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      padding: 15px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      max-height: 300px;
+      overflow-y: auto;
+      margin-top: 20px;
+    }
+    
+    .console-line {
+      margin-bottom: 5px;
+    }
+    
+    .console-line.info {
+      color: #60a5fa;
+    }
+    
+    .console-line.success {
+      color: #10b981;
+    }
+    
+    .console-line.error {
+      color: #ef4444;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔄 Favicon Fallback Test</h1>
+    
+    <div class="test-section">
+      <h2>Test Cases</h2>
+      <p>These test cases simulate different favicon scenarios:</p>
+      
+      <div class="test-case">
+        <img class="test-favicon" src="https://github.com/favicon.ico" alt="">
+        <div class="test-description">Valid favicon (github.com) - should load normally</div>
+        <span class="status pending" id="status-1">Pending</span>
+      </div>
+      
+      <div class="test-case">
+        <img class="test-favicon" src="https://invalid-domain-12345.com/favicon.ico" alt="">
+        <div class="test-description">Invalid domain - should fallback to Google service, then default</div>
+        <span class="status pending" id="status-2">Pending</span>
+      </div>
+      
+      <div class="test-case">
+        <img class="test-favicon" src="https://httpstat.us/404" alt="">
+        <div class="test-description">404 response - should fallback to default icon</div>
+        <span class="status pending" id="status-3">Pending</span>
+      </div>
+      
+      <div class="test-case">
+        <img class="test-favicon" src="not-a-valid-url" alt="">
+        <div class="test-description">Invalid URL - should immediately show default icon</div>
+        <span class="status pending" id="status-4">Pending</span>
+      </div>
+    </div>
+    
+    <div class="test-section">
+      <h2>Default Icon Previews</h2>
+      <p>Preview of default icons for different domains:</p>
+      
+      <div class="test-case">
+        <img class="test-favicon default-favicon" src="" alt="" data-domain="apple.com">
+        <div class="test-description">apple.com</div>
+      </div>
+      
+      <div class="test-case">
+        <img class="test-favicon default-favicon" src="" alt="" data-domain="google.com">
+        <div class="test-description">google.com</div>
+      </div>
+      
+      <div class="test-case">
+        <img class="test-favicon default-favicon" src="" alt="" data-domain="microsoft.com">
+        <div class="test-description">microsoft.com</div>
+      </div>
+      
+      <div class="test-case">
+        <img class="test-favicon default-favicon" src="" alt="" data-domain="stackoverflow.com">
+        <div class="test-description">stackoverflow.com</div>
+      </div>
+    </div>
+    
+    <div class="test-section">
+      <button onclick="runTests()">Run All Tests</button>
+      <button onclick="resetTests()">Reset Tests</button>
+      <button onclick="generateDefaultIcons()">Generate Default Icons</button>
+      
+      <div class="console" id="console">
+        <div class="console-line info">Console ready. Click "Run All Tests" to begin.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Copy the favicon fallback functions from app.js
+    function handleFaviconError(imgElement, originalUrl, domain) {
+      logToConsole(`Favicon error for ${domain}: ${originalUrl}`, 'error');
+      
+      // Try Google's favicon service if not already using it
+      if (!originalUrl.includes('google.com/s2/favicons')) {
+        const googleFaviconUrl = `https://www.google.com/s2/favicons?domain=${domain}`;
+        logToConsole(`Trying Google favicon service: ${googleFaviconUrl}`, 'info');
+        imgElement.onerror = () => handleFaviconError(imgElement, googleFaviconUrl, domain);
+        imgElement.src = googleFaviconUrl;
+        return;
+      }
+      
+      // If Google's service also fails, show default icon
+      logToConsole(`Google service failed, showing default icon for ${domain}`, 'info');
+      showDefaultFavicon(imgElement, domain);
+    }
+
+    function showDefaultFavicon(imgElement, domain) {
+      // Create a default favicon using the first letter of the domain
+      const firstLetter = domain.charAt(0).toUpperCase();
+      const colors = [
+        '#3b82f6', '#ef4444', '#10b981', '#f59e0b', 
+        '#8b5cf6', '#06b6d4', '#84cc16', '#f97316'
+      ];
+      const colorIndex = domain.charCodeAt(0) % colors.length;
+      const backgroundColor = colors[colorIndex];
+      
+      // Create SVG data URL for the default icon
+      const svgContent = `
+        <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+          <rect width="18" height="18" rx="3" fill="${backgroundColor}"/>
+          <text x="9" y="13" font-family="system-ui, -apple-system, sans-serif" 
+                font-size="10" font-weight="600" fill="white" text-anchor="middle">${firstLetter}</text>
+        </svg>
+      `;
+      
+      const dataUrl = `data:image/svg+xml;base64,${btoa(svgContent)}`;
+      imgElement.src = dataUrl;
+      imgElement.classList.add('default-favicon');
+      imgElement.onerror = null; // Remove error handler to prevent infinite loop
+      
+      logToConsole(`Generated default icon for ${domain} (${firstLetter} on ${backgroundColor})`, 'success');
+    }
+
+    function runTests() {
+      logToConsole('Starting favicon fallback tests...', 'info');
+      
+      // Reset all status indicators
+      document.querySelectorAll('.status').forEach((status, index) => {
+        status.textContent = 'Testing...';
+        status.className = 'status pending';
+      });
+      
+      // Test case 1: Valid favicon
+      setTimeout(() => {
+        const img1 = document.querySelector('.test-case:nth-child(2) .test-favicon');
+        img1.onload = () => {
+          document.getElementById('status-1').textContent = 'Pass';
+          document.getElementById('status-1').className = 'status pass';
+          logToConsole('Test 1 passed: Valid favicon loaded successfully', 'success');
+        };
+        img1.onerror = () => {
+          handleFaviconError(img1, img1.src, 'github.com');
+          document.getElementById('status-1').textContent = 'Fallback';
+          document.getElementById('status-1').className = 'status pass';
+        };
+        // Trigger reload
+        img1.src = img1.src + '?t=' + Date.now();
+      }, 100);
+      
+      // Test case 2: Invalid domain
+      setTimeout(() => {
+        const img2 = document.querySelector('.test-case:nth-child(3) .test-favicon');
+        img2.onerror = () => {
+          handleFaviconError(img2, img2.src, 'invalid-domain-12345.com');
+          document.getElementById('status-2').textContent = 'Pass';
+          document.getElementById('status-2').className = 'status pass';
+        };
+        // This should fail immediately
+        img2.src = img2.src + '?t=' + Date.now();
+      }, 200);
+      
+      // Test case 3: 404 response
+      setTimeout(() => {
+        const img3 = document.querySelector('.test-case:nth-child(4) .test-favicon');
+        img3.onerror = () => {
+          handleFaviconError(img3, img3.src, 'httpstat.us');
+          document.getElementById('status-3').textContent = 'Pass';
+          document.getElementById('status-3').className = 'status pass';
+        };
+        img3.src = img3.src + '?t=' + Date.now();
+      }, 300);
+      
+      // Test case 4: Invalid URL
+      setTimeout(() => {
+        const img4 = document.querySelector('.test-case:nth-child(5) .test-favicon');
+        img4.onerror = () => {
+          handleFaviconError(img4, img4.src, 'not-a-valid-url');
+          document.getElementById('status-4').textContent = 'Pass';
+          document.getElementById('status-4').className = 'status pass';
+        };
+        img4.src = 'not-a-valid-url-' + Date.now();
+      }, 400);
+      
+      logToConsole('All tests initiated. Results will appear as they complete.', 'info');
+    }
+    
+    function resetTests() {
+      logToConsole('Resetting tests...', 'info');
+      
+      // Reset status indicators
+      document.querySelectorAll('.status').forEach(status => {
+        status.textContent = 'Pending';
+        status.className = 'status pending';
+      });
+      
+      // Reset test images
+      const testImages = document.querySelectorAll('.test-case .test-favicon');
+      testImages[0].src = 'https://github.com/favicon.ico';
+      testImages[1].src = 'https://invalid-domain-12345.com/favicon.ico';
+      testImages[2].src = 'https://httpstat.us/404';
+      testImages[3].src = 'not-a-valid-url';
+      
+      // Remove default-favicon class
+      testImages.forEach(img => {
+        img.classList.remove('default-favicon');
+        img.onerror = null;
+        img.onload = null;
+      });
+      
+      logToConsole('Tests reset successfully', 'success');
+    }
+    
+    function generateDefaultIcons() {
+      logToConsole('Generating default icons for preview...', 'info');
+      
+      const previewImages = document.querySelectorAll('[data-domain]');
+      previewImages.forEach(img => {
+        const domain = img.getAttribute('data-domain');
+        showDefaultFavicon(img, domain);
+      });
+      
+      logToConsole('Default icons generated', 'success');
+    }
+    
+    function logToConsole(message, type = 'info') {
+      const console = document.getElementById('console');
+      const timestamp = new Date().toLocaleTimeString();
+      const line = document.createElement('div');
+      line.className = `console-line ${type}`;
+      line.textContent = `[${timestamp}] ${message}`;
+      console.appendChild(line);
+      console.scrollTop = console.scrollHeight;
+    }
+    
+    // Generate default icons on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      generateDefaultIcons();
+      logToConsole('Test page loaded. Ready to test favicon fallback functionality.', 'info');
+    });
+  </script>
+</body>
+</html>
