@@ -37,7 +37,7 @@ app.add_middleware(
 
 # Initialize components
 db = Database()
-vector_store = VectorStore(dimension=1536)
+vector_store = VectorStore(dimension=2048)  # ByteDance embedding model dimension
 ark_client = None
 
 # Initialize Ark API client if API key is available

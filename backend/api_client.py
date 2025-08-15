@@ -208,14 +208,22 @@ Please respond in this exact JSON format:
         try:
             response = await self._make_request(self.embedding_endpoint, payload)
             
-            # Extract embedding from response
-            if "data" in response and len(response["data"]) > 0:
-                embedding = response["data"][0].get("embedding", [])
-                if embedding:
-                    return embedding
+            # Extract embedding from response - handle the actual API structure
+            if "data" in response:
+                # The API returns data as a dict with "embedding" key, not a list
+                if isinstance(response["data"], dict) and "embedding" in response["data"]:
+                    embedding = response["data"]["embedding"]
+                    if embedding:
+                        return embedding
+                # Handle if data is a list (old format)
+                elif isinstance(response["data"], list) and len(response["data"]) > 0:
+                    embedding = response["data"][0].get("embedding", [])
+                    if embedding:
+                        return embedding
             
             # Fallback: return mock embedding
             print("Warning: Could not extract embedding from API response, using mock")
+            print(f"Response structure: {response}")
             return self._generate_mock_embedding()
         
         except Exception as e:
@@ -227,9 +235,9 @@ Please respond in this exact JSON format:
         import random
         import numpy as np
         
-        # Generate a random vector with 1536 dimensions (OpenAI embedding size)
+        # Generate a random vector with 2048 dimensions (ByteDance embedding size)
         random.seed(hash(str(time.time())) % 2**32)
-        vector = [random.gauss(0, 1) for _ in range(1536)]
+        vector = [random.gauss(0, 1) for _ in range(2048)]
         
         # Normalize the vector
         norm = np.linalg.norm(vector)
