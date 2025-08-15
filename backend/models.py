@@ -80,3 +80,26 @@ class FrequencyAnalyticsResponse(BaseModel):
     most_visited_pages: List[dict]
     recent_activity: List[dict]
     access_patterns: dict
+
+
+class QueryCacheStatsResponse(BaseModel):
+    """Model for query embedding cache statistics."""
+    capacity: int
+    size: int
+    hits: int
+    misses: int
+    hit_rate: float
+    total_requests: int
+    operations_count: int
+    expired_evicted: int
+    cache_file: str
+    ttl_days: float
+    auto_save_interval: int
+
+
+class CachedQueryResponse(BaseModel):
+    """Model for cached query information."""
+    query: str
+    access_count: int
+    last_accessed: str
+    created_at: str

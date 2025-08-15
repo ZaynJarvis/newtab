@@ -4,6 +4,8 @@ import asyncio
 import os
 import sys
 import time
+import signal
+import atexit
 from datetime import datetime
 from typing import List, Optional, Dict, Tuple
 
@@ -13,7 +15,8 @@ from fastapi.responses import JSONResponse
 
 from models import (
     PageCreate, PageResponse, SearchRequest, UnifiedSearchResponse,
-    HealthResponse, IndexResponse, VisitTrackingRequest, FrequencyAnalyticsResponse
+    HealthResponse, IndexResponse, VisitTrackingRequest, FrequencyAnalyticsResponse,
+    QueryCacheStatsResponse, CachedQueryResponse
 )
 from database import Database
 from vector_store import VectorStore
@@ -169,6 +172,49 @@ async def startup_event():
             print("❌ API health check timed out after 10s")
         except Exception as e:
             print(f"⚠️  API health check failed: {e}")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up resources on shutdown."""
+    print("🛑 Shutting down Local Web Memory Backend...")
+    
+    # Save query embedding cache before shutdown
+    if ark_client:
+        try:
+            success = ark_client.query_cache.force_save()
+            if success:
+                stats = ark_client.get_cache_stats()
+                print(f"💾 Query cache saved: {stats['size']} queries, {stats['hits']} hits")
+            else:
+                print("⚠️  Failed to save query cache")
+        except Exception as e:
+            print(f"❌ Error saving query cache: {e}")
+    
+    print("✅ Shutdown complete")
+
+
+def save_cache_on_exit():
+    """Fallback function to save cache on unexpected shutdown."""
+    if ark_client:
+        try:
+            success = ark_client.query_cache.force_save()
+            print(f"💾 Emergency cache save: {'✅ Success' if success else '❌ Failed'}")
+        except Exception as e:
+            print(f"❌ Emergency cache save failed: {e}")
+
+
+def signal_handler(signum, frame):
+    """Handle shutdown signals gracefully."""
+    print(f"\n🛑 Received signal {signum}, shutting down gracefully...")
+    save_cache_on_exit()
+    sys.exit(0)
+
+
+# Register signal handlers and exit handlers
+signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
+signal.signal(signal.SIGTERM, signal_handler)  # Termination signal
+atexit.register(save_cache_on_exit)             # Python exit
 
 
 @app.get("/", response_model=dict)
@@ -397,12 +443,17 @@ async def unified_search(q: str):
                 return []
         
         async def get_vector_results():
-            """Get vector search results."""
+            """
+            Get vector search results with 3-step fallback strategy:
+            1. Use exact cached embedding for query
+            2. If not cached, call API and cache result
+            3. If API fails, use keyword search top-1 result's embedding for similarity search
+            """
             if not ark_client:
                 return []
             
             try:
-                # Generate embedding for query
+                # Step 1 & 2: Generate embedding for query (cache-aware)
                 query_vector = await ark_client.generate_embedding(q)
                 
                 # Search in vector store with advanced filtering
@@ -424,6 +475,48 @@ async def unified_search(q: str):
                 return formatted_results
             except Exception as e:
                 print(f"Vector search error: {e}")
+                
+                # Step 3: Fallback to keyword search top-1 result's embedding for similarity
+                try:
+                    print(f"Attempting fallback: using keyword search top result's embedding")
+                    keyword_fallback_results, _ = db.search_keyword(q, 1)
+                    
+                    if keyword_fallback_results and len(keyword_fallback_results) > 0:
+                        top_result = keyword_fallback_results[0]
+                        
+                        # Get the stored embedding for the top keyword result
+                        stored_embedding = db.get_page_embedding(top_result.id)
+                        
+                        if stored_embedding:
+                            print(f"Using stored embedding from top keyword result: {top_result.title[:50]}...")
+                            
+                            # Use top result's embedding for vector similarity search
+                            fallback_vector_results = vector_store.search(
+                                stored_embedding,
+                                MAX_RESULTS * 2,
+                                MIN_SIMILARITY,
+                                enable_clustering=ENABLE_SMART_CUTOFF,
+                                similarity_drop_threshold=SIMILARITY_DROP_THRESHOLD
+                            )
+                            
+                            # Format fallback results
+                            formatted_fallback = []
+                            for page_data, similarity in fallback_vector_results:
+                                result_dict = page_data.dict()
+                                result_dict['vector_similarity'] = round(similarity, 4)
+                                # Mark as fallback result
+                                result_dict['fallback_source'] = 'keyword_top_result_embedding'
+                                formatted_fallback.append(result_dict)
+                            
+                            return formatted_fallback
+                        else:
+                            print(f"No stored embedding found for top keyword result")
+                    else:
+                        print(f"No keyword results found for fallback")
+                
+                except Exception as fallback_error:
+                    print(f"Fallback strategy also failed: {fallback_error}")
+                
                 return []
         
         # Execute searches in parallel
@@ -469,27 +562,39 @@ async def unified_search(q: str):
         # Apply ARC-based re-ranking with visit count
         final_results = list(url_to_result.values())
         
-        # Calculate combined scores including frequency metrics
+        # First pass: calculate base final scores without frequency boost
+        for result in final_results:
+            result['final_score'] = result.get('relevance_score', 0.0)
+        
+        # Find max score for frequency boost range calculation
+        if final_results:
+            max_score = max(result['final_score'] for result in final_results)
+            frequency_threshold = max_score - 0.05  # Apply boost only within 0.05 of max
+        else:
+            max_score = 0.0
+            frequency_threshold = 0.0
+        
+        # Second pass: apply frequency boost only to top-scoring results
         for result in final_results:
             # Get frequency metrics from result (already included from database)
             visit_count = result.get('visit_count', 0)
             arc_score = result.get('arc_score', 0.0)
             relevance_score = result.get('relevance_score', 0.0)
             
-            # For high relevance results, boost with visit frequency
-            if relevance_score > 0.3:  # Only boost above similarity threshold
+            # Apply frequency boost only to results within 0.05 of max score
+            if result['final_score'] >= frequency_threshold and visit_count > 0:
                 # Normalize visit count for boosting (max boost of 20%)
                 frequency_boost = min(visit_count / 50.0, 0.2)  # Cap at 20% boost
                 arc_boost = arc_score * 0.1  # ARC score contributes up to 10% boost
                 
-                # Apply frequency boost to highly relevant results
-                result['final_score'] = relevance_score * (1.0 + frequency_boost + arc_boost)
+                # Apply frequency boost to top results only
+                result['final_score'] = relevance_score + frequency_boost + arc_boost
+                result['frequency_boost'] = frequency_boost
+                result['arc_boost'] = arc_boost
             else:
-                result['final_score'] = relevance_score
-            
-            # Keep individual scores for debugging
-            result['frequency_boost'] = min(visit_count / 50.0, 0.2) if relevance_score > 0.3 else 0.0
-            result['arc_boost'] = arc_score * 0.1 if relevance_score > 0.3 else 0.0
+                # No frequency boost for lower scoring results
+                result['frequency_boost'] = 0.0
+                result['arc_boost'] = 0.0
         
         # Sort by combined final score and limit to MAX_RESULTS
         final_results.sort(key=lambda x: x['final_score'], reverse=True)
@@ -636,6 +741,71 @@ async def get_eviction_stats():
         return stats
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Stats failed: {str(e)}")
+
+
+@app.get("/cache/query/stats", response_model=QueryCacheStatsResponse, tags=["cache"])
+async def get_query_cache_stats():
+    """Get query embedding cache statistics."""
+    try:
+        if not ark_client:
+            raise HTTPException(status_code=503, detail="API client not available")
+        
+        stats = ark_client.get_cache_stats()
+        return QueryCacheStatsResponse(**stats)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Cache stats failed: {str(e)}")
+
+
+@app.get("/cache/query/top", response_model=List[CachedQueryResponse], tags=["cache"])
+async def get_top_cached_queries(limit: int = 10):
+    """Get most frequently cached queries."""
+    try:
+        if not ark_client:
+            raise HTTPException(status_code=503, detail="API client not available")
+        
+        if limit < 1 or limit > 100:
+            raise HTTPException(status_code=400, detail="Limit must be between 1 and 100")
+        
+        top_queries = ark_client.get_top_cached_queries(limit)
+        return [CachedQueryResponse(**query) for query in top_queries]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Top queries failed: {str(e)}")
+
+
+@app.post("/cache/query/clear", response_model=dict, tags=["cache"])
+async def clear_query_cache():
+    """Clear all cached query embeddings."""
+    try:
+        if not ark_client:
+            raise HTTPException(status_code=503, detail="API client not available")
+        
+        success = ark_client.clear_cache()
+        if success:
+            return {
+                "status": "success",
+                "message": "Query embedding cache cleared successfully"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to clear cache")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Cache clear failed: {str(e)}")
+
+
+@app.post("/cache/query/cleanup", response_model=dict, tags=["cache"])
+async def cleanup_query_cache():
+    """Clean up expired query cache entries."""
+    try:
+        if not ark_client:
+            raise HTTPException(status_code=503, detail="API client not available")
+        
+        removed_count = ark_client.cleanup_cache()
+        return {
+            "status": "success",
+            "removed_count": removed_count,
+            "message": f"Cleaned up {removed_count} expired cache entries"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Cache cleanup failed: {str(e)}")
 
 
 if __name__ == "__main__":

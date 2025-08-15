@@ -133,6 +133,24 @@ class Database:
                 return self._row_to_page_response(row)
             return None
     
+    def get_page_embedding(self, page_id: int) -> Optional[List[float]]:
+        """Get the stored embedding for a page by ID."""
+        with self.get_connection() as conn:
+            row = conn.execute(
+                "SELECT vector_embedding FROM pages WHERE id = ?", (page_id,)
+            ).fetchone()
+            
+            if row and row['vector_embedding']:
+                try:
+                    import json
+                    embedding = json.loads(row['vector_embedding'])
+                    if isinstance(embedding, list) and len(embedding) > 0:
+                        return embedding
+                except (json.JSONDecodeError, TypeError) as e:
+                    print(f"Error parsing stored embedding for page {page_id}: {e}")
+            
+            return None
+    
     def get_all_pages(self, limit: int = 100, offset: int = 0) -> List[PageResponse]:
         """Get all pages with pagination."""
         with self.get_connection() as conn:

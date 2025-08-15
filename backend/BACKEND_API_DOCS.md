@@ -3,6 +3,12 @@
 ## Overview
 The backend service is fully implemented and running on `http://localhost:8000`. It provides local indexing and intelligent search capabilities for the Chrome extension with AI-powered keyword generation, vector embeddings, and server-controlled result ranking.
 
+## 🚀 New in v2.1: Query Embedding Cache & Offline Resilience
+- **LRU Query Cache**: 1000-query capacity with 7-day TTL for offline search
+- **3-Step Fallback**: Cache → API → Keyword fallback strategy
+- **20-Operation Auto-Save**: Persistent cache across server restarts
+- **Thread-Safe Operations**: Concurrent access with performance optimization
+
 ## 🚀 New in v2.0: Unified Search Architecture
 - **Single Search Endpoint**: `/search?q=query` replaces multiple search methods
 - **Server Intelligence**: Optimal 70% semantic + 30% keyword weighting
@@ -116,8 +122,67 @@ Response:
 {
   "total_pages": 100,
   "total_vectors": 100,
-  "vector_dimensions": 1536,
+  "vector_dimensions": 2048,
   "memory_usage_mb": 0.06
+}
+```
+
+### 8. Query Embedding Cache Statistics
+**GET** `/cache/query/stats`
+```json
+Response:
+{
+  "capacity": 1000,
+  "size": 245,
+  "hits": 1832,
+  "misses": 567,
+  "hit_rate": 0.764,
+  "total_requests": 2399,
+  "operations_count": 823,
+  "expired_evicted": 12,
+  "cache_file": "query_embeddings_cache.json",
+  "ttl_days": 7.0,
+  "auto_save_interval": 20
+}
+```
+
+### 9. Top Cached Queries
+**GET** `/cache/query/top?limit=5`
+```json
+Response: [
+  {
+    "query": "machine learning",
+    "access_count": 45,
+    "last_accessed": "2025-01-15T14:30:00",
+    "created_at": "2025-01-10T09:15:00"
+  },
+  {
+    "query": "python tutorial",
+    "access_count": 32,
+    "last_accessed": "2025-01-15T13:45:00",
+    "created_at": "2025-01-11T11:20:00"
+  }
+]
+```
+
+### 10. Clear Query Cache
+**POST** `/cache/query/clear`
+```json
+Response:
+{
+  "status": "success",
+  "message": "Query embedding cache cleared successfully"
+}
+```
+
+### 11. Cleanup Expired Cache Entries
+**POST** `/cache/query/cleanup`
+```json
+Response:
+{
+  "status": "success",
+  "removed_count": 15,
+  "message": "Cleaned up 15 expired cache entries"
 }
 ```
 
@@ -137,6 +202,19 @@ The unified search endpoint implements sophisticated server-controlled logic:
 3. **Result Deduplication**: URL-based merging with combined scoring
 4. **Quality Control**: Maximum 10 results for focused, relevant responses
 5. **Fallback Handling**: Graceful degradation if vector search unavailable
+6. **Query Caching**: LRU cache for instant repeated searches and offline resilience
+
+### 3-Step Embedding Fallback Strategy
+```
+1. 📊 CACHE LOOKUP    → Check LRU cache for exact query match
+2. 🌐 API GENERATION  → Call ByteDance Ark API + cache result  
+3. 🔄 KEYWORD FALLBACK → Use top keyword result's stored embedding
+```
+
+This ensures search functionality even when:
+- Embedding API is down or slow
+- Network connectivity is limited
+- Cost optimization is needed (fewer API calls)
 
 ### Scoring Algorithm
 ```

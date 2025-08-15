@@ -7,6 +7,7 @@ from typing import List, Optional, Dict, Any
 import httpx
 import time
 from datetime import datetime
+from query_embedding_cache import QueryEmbeddingCache
 
 
 class ArkAPIClient:
@@ -28,6 +29,13 @@ class ArkAPIClient:
         self.retry_delay = 1.0  # seconds
         self.request_timeout = 30.0  # seconds
         self.health_check_timeout = 5.0  # shorter timeout for health checks
+        
+        # Initialize query embedding cache
+        self.query_cache = QueryEmbeddingCache(
+            capacity=1000,
+            cache_file="query_embeddings_cache.json",
+            ttl_days=7
+        )
     
     def _get_headers(self) -> Dict[str, str]:
         """Get common headers for API requests."""
@@ -183,7 +191,12 @@ Please respond in this exact JSON format:
     
     async def generate_embedding(self, text: str) -> List[float]:
         """
-        Generate vector embedding for text using ByteDance embedding API.
+        Generate vector embedding for text using ByteDance embedding API with LRU caching.
+        
+        Implements 3-step fallback strategy:
+        1. Check cache for exact match
+        2. Call API and cache result if successful
+        3. Return mock embedding if API fails
         
         Args:
             text: Text to embed (will be truncated if too long)
@@ -196,6 +209,13 @@ Please respond in this exact JSON format:
         if len(text) > max_text_length:
             text = text[:max_text_length] + "..."
         
+        # Step 1: Check cache for exact match
+        cached_embedding = self.query_cache.get(text)
+        if cached_embedding is not None:
+            print(f"Using cached embedding for query: {text[:50]}...")
+            return cached_embedding
+        
+        # Step 2: Call embedding API and cache result
         payload = {
             "model": self.embedding_model,
             "input": [
@@ -210,17 +230,20 @@ Please respond in this exact JSON format:
             response = await self._make_request(self.embedding_endpoint, payload)
             
             # Extract embedding from response - handle the actual API structure
+            embedding = None
             if "data" in response:
                 # The API returns data as a dict with "embedding" key, not a list
                 if isinstance(response["data"], dict) and "embedding" in response["data"]:
                     embedding = response["data"]["embedding"]
-                    if embedding:
-                        return embedding
                 # Handle if data is a list (old format)
                 elif isinstance(response["data"], list) and len(response["data"]) > 0:
                     embedding = response["data"][0].get("embedding", [])
-                    if embedding:
-                        return embedding
+            
+            if embedding:
+                # Cache successful API response
+                self.query_cache.put(text, embedding)
+                print(f"Generated and cached new embedding for query: {text[:50]}...")
+                return embedding
             
             # Fallback: return mock embedding
             print("Warning: Could not extract embedding from API response, using mock")
@@ -308,3 +331,20 @@ Please respond in this exact JSON format:
                 "error": str(e),
                 "timestamp": datetime.now().isoformat()
             }
+    
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """Get query embedding cache statistics."""
+        return self.query_cache.get_stats()
+    
+    def clear_cache(self) -> bool:
+        """Clear query embedding cache."""
+        self.query_cache.clear()
+        return True
+    
+    def cleanup_cache(self) -> int:
+        """Clean up expired cache entries. Returns number of removed entries."""
+        return self.query_cache.cleanup_expired()
+    
+    def get_top_cached_queries(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get most frequently cached queries for debugging."""
+        return self.query_cache.get_top_queries(limit)

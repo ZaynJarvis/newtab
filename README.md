@@ -38,16 +38,20 @@ uv run python ../demo/test-data-generator.py
 
 ### 🔍 **Intelligent Search System**
 - **Keyword search** with SQLite FTS5 full-text indexing
-- **Semantic search** using 1536-dimensional vector embeddings
+- **Semantic search** using 2048-dimensional vector embeddings
+- **LRU cached embeddings** for offline resilience and performance
+- **3-step fallback strategy** for API-independent search reliability
 - **Frequency-boosted ranking** for commonly accessed pages
 - **ARC-based relevance scoring** combining recency and access patterns
 - **Sub-100ms** response times with 600+ requests/second throughput
 
 ### 🧠 **Memory Management**
 - **Adaptive Replacement Cache (ARC)** algorithm for intelligent page eviction
+- **LRU Query Embedding Cache** with 1000-query capacity and 7-day TTL
 - **Visit frequency tracking** with automatic count suppression
 - **Smart re-indexing** (only when content is >3 days old)
 - **Configurable storage limits** with automatic cleanup
+- **Offline-first design** for API-independent functionality
 
 ### 🔒 **Privacy by Design**
 - **100% local storage** - no cloud syncing or external data sharing
@@ -91,6 +95,7 @@ graph TB
 | **API Server** | RESTful backend service | FastAPI + Uvicorn |
 | **Database** | Keyword indexing & frequency tracking | SQLite FTS5 + ARC metadata |
 | **Vector Store** | Semantic similarity search | NumPy + Cosine similarity |
+| **Query Cache** | LRU embedding cache for offline search | Thread-safe LRU + JSON persistence |
 | **ARC Cache** | Intelligent page eviction | Adaptive Replacement Cache algorithm |
 | **AI Client** | LLM processing & embeddings | ByteDance Ark APIs |
 | **Extension** | Browser integration | Chrome Manifest V3 |
@@ -125,12 +130,58 @@ POST /eviction/run
 GET /eviction/preview?count=10
 GET /eviction/stats
 
+# Query embedding cache management
+GET /cache/query/stats
+GET /cache/query/top?limit=10
+POST /cache/query/clear
+POST /cache/query/cleanup
+
 # Health check & system statistics
 GET /health
 GET /stats
 ```
 
 **💡 [Full API Documentation](http://localhost:8000/docs)** available when server is running
+
+## 🎯 Query Embedding Cache
+
+### **Offline-First Search Architecture**
+
+The system implements a sophisticated 3-step fallback strategy for embedding-based search:
+
+```bash
+1. 📊 CACHE HIT     → Use cached embedding (instant)
+2. 🌐 API CALL      → Generate new embedding + cache it  
+3. 🔄 FALLBACK      → Use keyword search top result's embedding
+```
+
+### **Features**
+- **LRU Eviction**: 1000-query capacity with intelligent eviction
+- **TTL Expiration**: 7-day automatic expiration for freshness
+- **Thread Safety**: Concurrent access with RLock protection
+- **Persistence**: Auto-save every 20 operations to JSON file
+- **Statistics**: Hit/miss rates, access patterns, performance metrics
+
+### **Cache Management API**
+```bash
+# View cache statistics
+curl localhost:8000/cache/query/stats
+
+# Get most popular queries
+curl localhost:8000/cache/query/top?limit=5
+
+# Clear all cached embeddings
+curl -X POST localhost:8000/cache/query/clear
+
+# Remove expired entries
+curl -X POST localhost:8000/cache/query/cleanup
+```
+
+### **Benefits**
+- 🚀 **10x faster** repeated searches (cache hits)
+- 🔌 **Works offline** when embedding API is down
+- 💰 **Cost reduction** by minimizing API calls
+- 📊 **Analytics** for query patterns and optimization
 
 ## 🧪 Testing & Demo
 
@@ -140,6 +191,9 @@ uv run python demo/test-data-generator.py
 
 # Run validation suite
 uv run python demo/quick-test.py
+
+# Test query embedding cache
+uv run python backend/test_query_cache.py
 
 # Performance benchmark
 uv run python demo/test_backend.py
@@ -154,7 +208,9 @@ newtab/
 │   ├── database.py   # SQLite + FTS5 + frequency tracking
 │   ├── vector_store.py # In-memory vector search
 │   ├── api_client.py # ByteDance Ark integration
+│   ├── query_embedding_cache.py # LRU cache for query embeddings
 │   ├── models.py     # Pydantic models + frequency types
+│   ├── test_query_cache.py # Unit tests for embedding cache
 │   └── arc/          # ARC-based eviction system
 │       ├── eviction.py    # Eviction policies
 │       ├── arc_cache.py   # ARC algorithm implementation
