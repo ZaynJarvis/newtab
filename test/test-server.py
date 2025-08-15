@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Simple test server for the Local Web Memory Chrome extension.
-Serves the extension files and test page for local development.
+Debug wrapper server for the Local Web Memory Chrome extension.
+Serves as a wrapper around the newtab page for debugging purposes.
 """
 
 import http.server
@@ -16,16 +16,26 @@ EXTENSION_DIR = Path(__file__).parent.parent / "extension"
 TEST_DIR = Path(__file__).parent
 
 class ExtensionTestHandler(http.server.SimpleHTTPRequestHandler):
-    """Custom handler for serving extension files and test pages."""
+    """Custom handler that primarily serves the newtab page for debugging."""
     
     def __init__(self, *args, **kwargs):
         # Set the directory to serve from
         super().__init__(*args, directory=str(TEST_DIR.parent), **kwargs)
     
     def do_GET(self):
-        """Handle GET requests with proper CORS headers."""
+        """Handle GET requests, redirecting root to newtab page."""
+        # Redirect root path to newtab page for debugging
+        if self.path == '/' or self.path == '':
+            self.send_response(301)
+            self.send_header('Location', '/extension/newtab/index.html')
+            self.end_headers()
+            return
+        
         # Add CORS headers for extension testing
         self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         
         # Determine content type based on file extension
         if self.path.endswith('.js'):
@@ -37,10 +47,7 @@ class ExtensionTestHandler(http.server.SimpleHTTPRequestHandler):
         elif self.path.endswith('.json'):
             self.send_header('Content-Type', 'application/json')
         
-        # Add CORS headers
-        self.send_header('Access-Control-Allow-Origin', '*')
-        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
         
         # Serve the file
         return super().do_GET()
@@ -50,27 +57,30 @@ class ExtensionTestHandler(http.server.SimpleHTTPRequestHandler):
         sys.stdout.write(f"[{self.log_date_time_string()}] {format % args}\n")
 
 def main():
-    """Run the test server."""
+    """Run the debug wrapper server."""
     print(f"""
 ╔══════════════════════════════════════════════════════════════╗
-║        Local Web Memory Extension - Test Server              ║
+║        Local Web Memory Extension - Debug Wrapper            ║
 ╚══════════════════════════════════════════════════════════════╝
 
 📁 Serving from: {TEST_DIR.parent}
-🌐 Server running at: http://localhost:{PORT}
+🌐 Debug server running at: http://localhost:{PORT}
 
-📋 Available test pages:
+🐛 Debug Access:
+   • http://localhost:{PORT}/ - Direct access to newtab page (auto-redirected)
+   • http://localhost:{PORT}/extension/newtab/index.html - Newtab page
+   
+📋 Other test pages:
    • http://localhost:{PORT}/test/test-extension.html - Full test interface
-   • http://localhost:{PORT}/extension/newtab/index.html - Extension new tab page
    • http://localhost:{PORT}/extension/popup/popup.html - Extension popup
 
-🧪 Quick Test Steps:
+🧪 Debug Workflow:
    1. Make sure backend is running at http://localhost:8000
-   2. Open http://localhost:{PORT}/test/test-extension.html
-   3. Click "Run All Tests" to validate the backend
-   4. Try searching for content
+   2. Open http://localhost:{PORT}/ for direct newtab debugging
+   3. Use browser dev tools to inspect metadata panel issues
+   4. Check network tab for failed requests
 
-🔧 Chrome Extension Testing:
+🔧 For Chrome Extension Testing:
    1. Open Chrome and go to chrome://extensions
    2. Enable "Developer mode" (top right)
    3. Click "Load unpacked"
@@ -78,9 +88,9 @@ def main():
    5. Open a new tab to see the extension in action
 
 ⚠️  Note: Make sure the backend server is running:
-   cd backend && source .venv/bin/activate && uvicorn main:app --reload
+   cd backend && uv run uvicorn main:app --reload
 
-Press Ctrl+C to stop the server.
+Press Ctrl+C to stop the debug server.
 """)
     
     try:

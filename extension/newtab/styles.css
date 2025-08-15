@@ -111,6 +111,8 @@ body {
   max-width: 700px;
   margin: 0 auto;
   min-height: 200px;
+  overflow: visible;
+  position: relative;
 }
 
 .result-card {
@@ -679,5 +681,88 @@ input[type="checkbox"]:checked + .toggle-switch::after {
   
   .container {
     padding: 40px 16px 16px;
+  }
+}
+
+/* Metadata Panel Styles - Subtle Integration */
+.metadata-panel {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin-top: 6px;
+  display: none;
+  font-size: 10px;
+  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
+  opacity: 0.8;
+}
+
+.metadata-panel:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+  opacity: 1;
+}
+
+.metadata-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 3px;
+  line-height: 1.3;
+  font-weight: 400;
+}
+
+.metadata-item:last-child {
+  margin-bottom: 0;
+}
+
+.metadata-item::before {
+  content: attr(data-label);
+  color: rgba(255, 255, 255, 0.45);
+  margin-right: 8px;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.metadata-item span {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Debug mode - always show metadata */
+.debug-mode .metadata-panel {
+  display: block;
+}
+
+/* Enhanced result card integration when metadata is visible */
+.debug-mode .result-card {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.debug-mode .result-card:hover .metadata-panel {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Responsive metadata styles */
+@media (max-width: 600px) {
+  .metadata-panel {
+    font-size: 9px;
+    padding: 5px 6px;
+  }
+  
+  .metadata-item::before {
+    font-size: 8px;
+    margin-right: 6px;
+  }
+  
+  .metadata-item span {
+    font-size: 9px;
   }
 }

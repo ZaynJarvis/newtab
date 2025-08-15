@@ -27,6 +27,7 @@ class ArkAPIClient:
         self.max_retries = 3
         self.retry_delay = 1.0  # seconds
         self.request_timeout = 30.0  # seconds
+        self.health_check_timeout = 5.0  # shorter timeout for health checks
     
     def _get_headers(self) -> Dict[str, str]:
         """Get common headers for API requests."""
@@ -247,9 +248,9 @@ Please respond in this exact JSON format:
         return vector
     
     async def health_check(self) -> Dict[str, Any]:
-        """Check if the API is accessible."""
+        """Check if the API is accessible with timeout protection."""
         try:
-            # Simple test request to LLM API
+            # Simple test request to LLM API with short timeout
             payload = {
                 "model": self.llm_model,
                 "messages": [
@@ -262,15 +263,43 @@ Please respond in this exact JSON format:
             }
             
             start_time = time.time()
-            response = await self._make_request(self.llm_endpoint, payload)
-            response_time = time.time() - start_time
             
-            return {
-                "status": "healthy",
-                "llm_api": "accessible",
-                "response_time_ms": round(response_time * 1000, 2),
-                "timestamp": datetime.now().isoformat()
-            }
+            # Use asyncio.wait_for to enforce timeout
+            try:
+                async with httpx.AsyncClient(timeout=self.health_check_timeout) as client:
+                    response = await asyncio.wait_for(
+                        client.post(
+                            self.llm_endpoint,
+                            headers=self._get_headers(),
+                            json=payload
+                        ),
+                        timeout=self.health_check_timeout
+                    )
+                    
+                    response_time = time.time() - start_time
+                    
+                    if response.status_code == 200:
+                        return {
+                            "status": "healthy",
+                            "llm_api": "accessible",
+                            "response_time_ms": round(response_time * 1000, 2),
+                            "timestamp": datetime.now().isoformat()
+                        }
+                    else:
+                        return {
+                            "status": "unhealthy",
+                            "llm_api": "error",
+                            "error": f"HTTP {response.status_code}: {response.text}",
+                            "timestamp": datetime.now().isoformat()
+                        }
+            
+            except asyncio.TimeoutError:
+                return {
+                    "status": "unhealthy",
+                    "llm_api": "timeout",
+                    "error": f"Health check timed out after {self.health_check_timeout}s",
+                    "timestamp": datetime.now().isoformat()
+                }
         
         except Exception as e:
             return {

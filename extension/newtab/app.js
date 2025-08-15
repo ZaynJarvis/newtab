@@ -204,6 +204,7 @@ function initializeEventListeners() {
   document.getElementById('settingsToggle').addEventListener('click', openSettings);
   document.getElementById('closeSettings').addEventListener('click', closeSettings);
   document.getElementById('enableIndexing').addEventListener('change', handleIndexingToggle);
+  document.getElementById('showMetadata').addEventListener('change', handleMetadataToggle);
   document.getElementById('addDomain').addEventListener('click', addExcludedDomain);
   document.getElementById('newDomain').addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
@@ -286,16 +287,66 @@ async function handleSearch() {
   `;
   
   try {
-    // Use service worker to search with new unified endpoint
-    const response = await chrome.runtime.sendMessage({
-      type: 'SEARCH',
-      query: query
-    });
+    let response;
     
-    if (response.success && response.results.length > 0) {
+    // Try Chrome extension API first, fallback to direct backend call for debugging
+    if (typeof chrome !== 'undefined' && chrome.runtime) {
+      response = await chrome.runtime.sendMessage({
+        type: 'SEARCH',
+        query: query
+      });
+    } else {
+      // Fallback for debugging - try backend call, fallback to mock data
+      try {
+        const backendResponse = await fetch(`${BACKEND_URL}/search?q=${encodeURIComponent(query)}`);
+        if (backendResponse.ok) {
+          const data = await backendResponse.json();
+          response = { success: true, results: data.results || [] };
+        } else {
+          throw new Error('Backend not available');
+        }
+      } catch (backendError) {
+        // Use mock data for debugging metadata display
+        response = {
+          success: true,
+          results: [
+            {
+              id: 1,
+              title: `Mock Result for "${query}"`,
+              url: `https://example.com/result1?q=${encodeURIComponent(query)}`,
+              description: `This is a mock search result for testing metadata display with query: ${query}`,
+              keywords: 'python,programming,code,test',
+              favicon_url: 'https://www.google.com/s2/favicons?domain=example.com',
+              metadata: {
+                vector_score: 0.856,
+                keyword_score: 0.743,
+                access_count: 15,
+                final_score: 0.799
+              }
+            },
+            {
+              id: 2,
+              title: `Another ${query} Example`,
+              url: `https://docs.example.com/${query.toLowerCase()}`,
+              description: `Documentation page about ${query} with detailed examples and tutorials`,
+              keywords: `${query},documentation,tutorial,examples`,
+              favicon_url: 'https://www.google.com/s2/favicons?domain=docs.example.com',
+              metadata: {
+                vector_score: 0.923,
+                keyword_score: 0.891,
+                access_count: 42,
+                final_score: 0.907
+              }
+            }
+          ]
+        };
+      }
+    }
+    
+    if (response && response.success && response.results && response.results.length > 0) {
       searchResults = response.results;
       displayResults(response.results);
-    } else if (response.success && response.results.length === 0) {
+    } else if (response && response.success && response.results && response.results.length === 0) {
       searchResults = [];
       resultsContainer.innerHTML = `
         <div class="no-results">
@@ -304,7 +355,7 @@ async function handleSearch() {
         </div>
       `;
     } else {
-      throw new Error(response.error || 'Search failed');
+      throw new Error(response?.error || 'Search failed');
     }
   } catch (error) {
     console.error('Search error:', error);
@@ -355,10 +406,18 @@ function displayResults(results) {
             </div>
           ` : ''}
         </div>
+        ${result.metadata ? `
+          <div class="metadata-panel">
+            <div class="metadata-item" data-label="Vector Score:"><span>${parseFloat(result.metadata.vector_score).toFixed(3)}</span></div>
+            <div class="metadata-item" data-label="Keyword Score:"><span>${parseFloat(result.metadata.keyword_score).toFixed(3)}</span></div>
+            <div class="metadata-item" data-label="Access Count:"><span>${result.metadata.access_count}</span></div>
+            <div class="metadata-item" data-label="Final Score:"><span>${parseFloat(result.metadata.final_score).toFixed(3)}</span></div>
+          </div>
+        ` : ''}
         <button class="result-delete" data-id="${result.id}" title="Delete this entry">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="3,6 5,6 21,6"></polyline>
-            <path d="m19,6v14a2,2 0,0 1,-2,2H7a2,2 0,0 1,-2,-2V6m3,0V4a2,2 0,0 1,2,-2h4a2,2 0,0 1,2,2V6"></path>
+            <path d="m19,6v14a2,2 0,0 1,-2,2H7a2,2 0,0 1,-2,2V6m3,0V4a2,2 0,0 1,2,-2h4a2,2 0,0 1,2,2V6"></path>
             <line x1="10" y1="11" x2="10" y2="17"></line>
             <line x1="14" y1="11" x2="14" y2="17"></line>
           </svg>
@@ -457,13 +516,24 @@ function closeSettings() {
 
 async function loadSettings() {
   try {
-    const storage = await chrome.storage.local.get('localWebMemory');
-    const settings = storage.localWebMemory || {};
+    let settings = {};
+    
+    // Try Chrome storage first, fallback to localStorage for debugging
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      const storage = await chrome.storage.local.get('localWebMemory');
+      settings = storage.localWebMemory || {};
+    } else {
+      // Fallback for debugging outside Chrome extension
+      const localSettings = localStorage.getItem('localWebMemory');
+      settings = localSettings ? JSON.parse(localSettings) : {};
+    }
     
     document.getElementById('enableIndexing').checked = settings.indexingEnabled !== false;
+    document.getElementById('showMetadata').checked = settings.showMetadata === true;
     excludedDomains = settings.excludedDomains || [];
     
     updateExcludedDomainsList();
+    updateMetadataDisplay(settings.showMetadata === true);
   } catch (error) {
     console.error('Error loading settings:', error);
   }
@@ -480,6 +550,42 @@ async function handleIndexingToggle(e) {
   } catch (error) {
     console.error('Error updating settings:', error);
     e.target.checked = !enabled; // Revert on error
+  }
+}
+
+async function handleMetadataToggle(e) {
+  const enabled = e.target.checked;
+  
+  try {
+    let settings = {};
+    
+    // Try Chrome storage first, fallback to localStorage for debugging
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      const storage = await chrome.storage.local.get('localWebMemory');
+      settings = storage.localWebMemory || {};
+      settings.showMetadata = enabled;
+      await chrome.storage.local.set({ localWebMemory: settings });
+    } else {
+      // Fallback for debugging outside Chrome extension
+      const localSettings = localStorage.getItem('localWebMemory');
+      settings = localSettings ? JSON.parse(localSettings) : {};
+      settings.showMetadata = enabled;
+      localStorage.setItem('localWebMemory', JSON.stringify(settings));
+    }
+    
+    updateMetadataDisplay(enabled);
+  } catch (error) {
+    console.error('Error updating metadata settings:', error);
+    e.target.checked = !enabled; // Revert on error
+  }
+}
+
+function updateMetadataDisplay(showMetadata) {
+  const searchView = document.getElementById('searchView');
+  if (showMetadata) {
+    searchView.classList.add('debug-mode');
+  } else {
+    searchView.classList.remove('debug-mode');
   }
 }
 

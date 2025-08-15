@@ -162,8 +162,11 @@ async def startup_event():
     # Test API connection if available
     if ark_client:
         try:
-            health = await ark_client.health_check()
+            # Wrap health check with timeout to prevent startup hangs
+            health = await asyncio.wait_for(ark_client.health_check(), timeout=10.0)
             print(f"🔗 API Health: {health['status']}")
+        except asyncio.TimeoutError:
+            print("❌ API health check timed out after 10s")
         except Exception as e:
             print(f"⚠️  API health check failed: {e}")
 
@@ -492,10 +495,20 @@ async def unified_search(q: str):
         final_results.sort(key=lambda x: x['final_score'], reverse=True)
         final_results = final_results[:MAX_RESULTS]
         
-        # Clean up results for response
+        # Clean up results for response and prepare metadata for frontend
         for result in final_results:
+            # Keep the final relevance score
             result['relevance_score'] = round(result.get('final_score', 0.0), 4)
-            # Remove internal scoring fields but keep frequency info for debugging
+            
+            # Preserve scoring metadata for hover hints
+            result['metadata'] = {
+                'vector_score': round(result.get('vector_score', 0.0), 4),
+                'keyword_score': round(result.get('keyword_score', 0.0), 4),
+                'access_count': result.get('visit_count', 0),
+                'final_score': round(result.get('final_score', 0.0), 4)
+            }
+            
+            # Remove internal scoring fields (now preserved in metadata)
             result.pop('keyword_score', None)
             result.pop('vector_score', None)
             result.pop('vector_similarity', None)
