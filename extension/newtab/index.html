@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Tab - Local Web Memory</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Main Search Section -->
+    <main id="searchView" class="view active">
+      <div class="search-header">
+        <h1 class="logo">Local Web Memory</h1>
+        <p class="tagline">Search your browsing history with AI-powered intelligence</p>
+      </div>
+      
+      <div class="search-container">
+        <div class="search-box">
+          <input 
+            type="text" 
+            id="searchInput" 
+            placeholder="Search your browsing history..." 
+            autocomplete="off"
+            autofocus
+          >
+          <button id="searchButton" aria-label="Search">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
+            </svg>
+          </button>
+        </div>
+        
+        <div class="search-options">
+          <label class="radio-option">
+            <input type="radio" name="searchType" value="keyword" checked>
+            <span>Keyword Search</span>
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="searchType" value="vector">
+            <span>Semantic Search</span>
+          </label>
+        </div>
+      </div>
+      
+      <div id="searchResults" class="search-results">
+        <!-- Results will be inserted here -->
+      </div>
+      
+      <div class="quick-stats" id="quickStats">
+        <div class="stat">
+          <span class="stat-value" id="totalPages">0</span>
+          <span class="stat-label">Pages Indexed</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="backendStatus">-</span>
+          <span class="stat-label">Backend Status</span>
+        </div>
+      </div>
+    </main>
+    
+    <!-- Settings Section -->
+    <aside id="settingsView" class="settings-panel">
+      <div class="settings-header">
+        <h2>Settings</h2>
+        <button id="closeSettings" class="close-btn" aria-label="Close settings">×</button>
+      </div>
+      
+      <div class="settings-content">
+        <section class="settings-section">
+          <h3>Privacy</h3>
+          <div class="setting-item">
+            <label class="toggle-setting">
+              <span>Enable Indexing</span>
+              <input type="checkbox" id="enableIndexing" checked>
+              <span class="toggle-switch"></span>
+            </label>
+          </div>
+        </section>
+        
+        <section class="settings-section">
+          <h3>Excluded Domains</h3>
+          <p class="settings-description">Pages from these domains won't be indexed</p>
+          <div class="excluded-domains" id="excludedDomains">
+            <!-- Domain list will be inserted here -->
+          </div>
+          <div class="add-domain">
+            <input 
+              type="text" 
+              id="newDomain" 
+              placeholder="example.com"
+              class="domain-input"
+            >
+            <button id="addDomain" class="btn-small">Add Domain</button>
+          </div>
+        </section>
+        
+        <section class="settings-section">
+          <h3>Data Management</h3>
+          <div class="button-group">
+            <button id="clearAllData" class="btn-danger">Clear All Data</button>
+            <button id="exportData" class="btn-secondary">Export Data</button>
+          </div>
+        </section>
+        
+        <section class="settings-section">
+          <h3>Statistics</h3>
+          <div class="stats-grid" id="detailedStats">
+            <!-- Stats will be inserted here -->
+          </div>
+        </section>
+      </div>
+    </aside>
+    
+    <!-- Settings Toggle Button -->
+    <button id="settingsToggle" class="settings-toggle" aria-label="Open settings">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M12 1v6m0 6v6m4.22-13.22 4.24 4.24M18.36 18.36l4.24 4.24M20.5 12H23m-6 0h6M4.22 19.78l4.24-4.24M1.5 12H4m2.5 0H4"/>
+      </svg>
+    </button>
+  </div>
+  
+  <script src="app.js"></script>
+</body>
+</html>
