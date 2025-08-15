@@ -1,10 +1,11 @@
 """Local Web Memory Backend Service - FastAPI with SQLite FTS5 and vector search."""
 
+import asyncio
 import os
 import sys
 import time
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Tuple
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,7 +13,7 @@ from fastapi.responses import JSONResponse
 
 from models import (
     PageCreate, PageResponse, SearchRequest, KeywordSearchResponse,
-    VectorSearchResponse, HealthResponse, IndexResponse
+    VectorSearchResponse, CombinedSearchResponse, HealthResponse, IndexResponse
 )
 from database import Database
 from vector_store import VectorStore
@@ -134,6 +135,7 @@ async def root():
             "index": "POST /index",
             "search_keyword": "GET /search/keyword",
             "search_vector": "GET /search/vector",
+            "search_combined": "GET /search/combined",
             "pages": "GET /pages",
             "delete_page": "DELETE /pages/{id}"
         },
@@ -240,6 +242,187 @@ async def search_vector(query: str, limit: int = 10, min_similarity: float = 0.1
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Vector search failed: {str(e)}")
+
+
+@app.get("/search/combined", response_model=CombinedSearchResponse)
+async def search_combined(
+    query: str, 
+    limit: int = 10, 
+    min_similarity: float = 0.1,
+    keyword_weight: float = 0.6,
+    semantic_weight: float = 0.4
+):
+    """
+    Combined search using both keyword and semantic search with weighted scoring.
+    
+    Args:
+        query: Search query
+        limit: Maximum number of results to return
+        min_similarity: Minimum similarity threshold for vector search
+        keyword_weight: Weight for keyword search results (default: 0.6)
+        semantic_weight: Weight for semantic search results (default: 0.4)
+    """
+    if not query.strip():
+        raise HTTPException(status_code=400, detail="Query cannot be empty")
+    
+    # Validate weights
+    if abs(keyword_weight + semantic_weight - 1.0) > 0.001:
+        raise HTTPException(status_code=400, detail="Keyword weight and semantic weight must sum to 1.0")
+    
+    try:
+        # Define async functions for parallel execution
+        async def get_keyword_results():
+            """Get keyword search results."""
+            try:
+                results, total = db.search_keyword(query, limit * 2)  # Get more results for better merging
+                return results, total
+            except Exception as e:
+                print(f"Keyword search error: {e}")
+                return [], 0
+        
+        async def get_vector_results():
+            """Get vector search results."""
+            if not ark_client:
+                return [], 0
+            
+            try:
+                # Generate embedding for query
+                query_vector = await ark_client.generate_embedding(query)
+                
+                # Search in vector store
+                vector_results = vector_store.search(query_vector, limit * 2, min_similarity)
+                
+                # Format results with similarity scores
+                formatted_results = []
+                for page_data, similarity in vector_results:
+                    result_dict = page_data.dict()
+                    result_dict['similarity_score'] = round(similarity, 4)
+                    formatted_results.append(result_dict)
+                
+                return formatted_results, len(formatted_results)
+            except Exception as e:
+                print(f"Vector search error: {e}")
+                return [], 0
+        
+        # Execute searches in parallel
+        keyword_task = asyncio.create_task(get_keyword_results())
+        vector_task = asyncio.create_task(get_vector_results())
+        
+        # Wait for both searches to complete
+        (keyword_results, keyword_total), (vector_results, vector_total) = await asyncio.gather(
+            keyword_task, vector_task
+        )
+        
+        # Normalize and combine scores
+        combined_results = _combine_search_results(
+            keyword_results, vector_results, keyword_weight, semantic_weight
+        )
+        
+        # Limit final results
+        final_results = combined_results[:limit]
+        
+        return CombinedSearchResponse(
+            results=final_results,
+            total_found=len(final_results),
+            query=query,
+            keyword_results_count=len(keyword_results),
+            semantic_results_count=len(vector_results)
+        )
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Combined search failed: {str(e)}")
+
+
+def _normalize_keyword_scores(results: List[PageResponse]) -> List[Dict]:
+    """Normalize keyword search scores to 0-1 range using ranking position."""
+    if not results:
+        return []
+    
+    result_dicts = []
+    
+    # Since results from db.search_keyword() are already ranked by BM25 score,
+    # we can assign scores based on ranking position (1st = highest score)
+    total_results = len(results)
+    
+    for i, result in enumerate(results):
+        result_dict = result.dict()
+        
+        # Assign scores based on ranking position (0-based index)
+        # First result gets highest score (1.0), last gets lowest
+        if total_results == 1:
+            normalized_score = 1.0
+        else:
+            # Linear decay from 1.0 to 0.1 based on position
+            normalized_score = 1.0 - (i / (total_results - 1)) * 0.9
+        
+        result_dict['normalized_keyword_score'] = round(normalized_score, 4)
+        result_dict['ranking_position'] = i + 1  # 1-based ranking
+        result_dicts.append(result_dict)
+    
+    return result_dicts
+
+
+def _combine_search_results(
+    keyword_results: List[PageResponse], 
+    vector_results: List[Dict], 
+    keyword_weight: float, 
+    semantic_weight: float
+) -> List[Dict]:
+    """
+    Combine and deduplicate search results with weighted scoring.
+    
+    Args:
+        keyword_results: Results from keyword search
+        vector_results: Results from vector search (already formatted as dicts)
+        keyword_weight: Weight for keyword search scores
+        semantic_weight: Weight for semantic search scores
+    
+    Returns:
+        Combined and ranked results
+    """
+    # Normalize keyword scores
+    normalized_keyword_results = _normalize_keyword_scores(keyword_results)
+    
+    # Create URL-based lookup for deduplication
+    url_to_result: Dict[str, Dict] = {}
+    
+    # Add keyword results
+    for result in normalized_keyword_results:
+        url = result['url']
+        result['keyword_score'] = result.get('normalized_keyword_score', 0.0)
+        result['semantic_score'] = 0.0
+        result['combined_score'] = result['keyword_score'] * keyword_weight
+        url_to_result[url] = result
+    
+    # Add or merge vector results
+    for result in vector_results:
+        url = result['url']
+        semantic_score = result.get('similarity_score', 0.0)
+        
+        if url in url_to_result:
+            # URL already exists from keyword search, merge scores
+            existing = url_to_result[url]
+            existing['semantic_score'] = semantic_score
+            existing['combined_score'] = (
+                existing['keyword_score'] * keyword_weight + 
+                semantic_score * semantic_weight
+            )
+        else:
+            # New URL from vector search only
+            result['keyword_score'] = 0.0
+            result['semantic_score'] = semantic_score
+            result['combined_score'] = semantic_score * semantic_weight
+            url_to_result[url] = result
+    
+    # Sort by combined score (descending) and return
+    combined_results = list(url_to_result.values())
+    combined_results.sort(key=lambda x: x['combined_score'], reverse=True)
+    
+    # Round combined scores for cleaner output
+    for result in combined_results:
+        result['combined_score'] = round(result['combined_score'], 4)
+    
+    return combined_results
 
 
 @app.get("/pages", response_model=List[PageResponse])

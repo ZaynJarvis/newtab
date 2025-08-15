@@ -1,7 +1,9 @@
 // New tab page app
 const BACKEND_URL = 'http://localhost:8000';
-let currentSearchType = 'keyword';
+let currentSearchType = 'combined'; // Use combined search by default
 let excludedDomains = [];
+let selectedIndex = -1;
+let searchResults = [];
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
@@ -14,29 +16,23 @@ document.addEventListener('DOMContentLoaded', () => {
   if (window.location.hash === '#settings') {
     openSettings();
   }
+  
+  // Force focus on search input with delay to work around Chrome security
+  setTimeout(() => {
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+      searchInput.focus();
+    }
+  }, 100);
 });
 
 // Event Listeners
 function initializeEventListeners() {
   // Search
   const searchInput = document.getElementById('searchInput');
-  const searchButton = document.getElementById('searchButton');
   
   searchInput.addEventListener('input', debounce(handleSearch, 300));
-  searchInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      handleSearch();
-    }
-  });
-  searchButton.addEventListener('click', handleSearch);
-  
-  // Search type radio buttons
-  document.querySelectorAll('input[name="searchType"]').forEach(radio => {
-    radio.addEventListener('change', (e) => {
-      currentSearchType = e.target.value;
-      handleSearch();
-    });
-  });
+  searchInput.addEventListener('keydown', handleKeyNavigation);
   
   // Settings
   document.getElementById('settingsToggle').addEventListener('click', openSettings);
@@ -52,13 +48,56 @@ function initializeEventListeners() {
   document.getElementById('exportData').addEventListener('click', exportData);
 }
 
+// Keyboard Navigation
+function handleKeyNavigation(e) {
+  const resultsContainer = document.getElementById('searchResults');
+  const resultCards = resultsContainer.querySelectorAll('.result-card');
+  
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    selectedIndex = Math.min(selectedIndex + 1, resultCards.length - 1);
+    updateSelection(resultCards);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    selectedIndex = Math.max(selectedIndex - 1, -1);
+    updateSelection(resultCards);
+  } else if (e.key === 'Enter' && selectedIndex >= 0) {
+    e.preventDefault();
+    const selectedCard = resultCards[selectedIndex];
+    if (selectedCard) {
+      const link = selectedCard.querySelector('.result-title');
+      if (link) {
+        window.open(link.href, '_blank');
+      }
+    }
+  } else if (e.key === 'Escape') {
+    selectedIndex = -1;
+    updateSelection(resultCards);
+  }
+}
+
+function updateSelection(resultCards) {
+  resultCards.forEach((card, index) => {
+    if (index === selectedIndex) {
+      card.classList.add('selected');
+      card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    } else {
+      card.classList.remove('selected');
+    }
+  });
+}
+
 // Search Functionality
 async function handleSearch() {
   const query = document.getElementById('searchInput').value.trim();
   const resultsContainer = document.getElementById('searchResults');
   
+  // Reset selection when search changes
+  selectedIndex = -1;
+  
   if (!query) {
     resultsContainer.innerHTML = '';
+    searchResults = [];
     return;
   }
   
@@ -79,8 +118,10 @@ async function handleSearch() {
     });
     
     if (response.success && response.results.length > 0) {
+      searchResults = response.results;
       displayResults(response.results);
     } else if (response.success && response.results.length === 0) {
+      searchResults = [];
       resultsContainer.innerHTML = `
         <div class="no-results">
           <h3>No results found</h3>
@@ -105,32 +146,47 @@ async function handleSearch() {
 function displayResults(results) {
   const resultsContainer = document.getElementById('searchResults');
   
-  const html = results.map(result => {
+  const html = results.map((result, index) => {
     const keywords = result.keywords ? result.keywords.split(',').slice(0, 5) : [];
     const faviconUrl = result.favicon_url || `https://www.google.com/s2/favicons?domain=${new URL(result.url).hostname}`;
     
     return `
-      <div class="result-card" data-id="${result.id}">
-        <div class="result-header">
-          <img src="${faviconUrl}" alt="" class="result-favicon" onerror="this.style.display='none'">
-          <a href="${result.url}" target="_blank" class="result-title">${escapeHtml(result.title)}</a>
-        </div>
-        <div class="result-url">${escapeHtml(result.url)}</div>
-        <div class="result-description">${escapeHtml(result.description || 'No description available')}</div>
-        ${keywords.length > 0 ? `
-          <div class="result-keywords">
-            ${keywords.map(k => `<span class="keyword-tag">${escapeHtml(k.trim())}</span>`).join('')}
+      <div class="result-card" data-id="${result.id}" data-index="${index}">
+        <div class="result-main" onclick="window.open('${result.url}', '_blank')">
+          <div class="result-header">
+            <img src="${faviconUrl}" alt="" class="result-favicon" onerror="this.style.display='none'">
+            <a href="${result.url}" target="_blank" class="result-title">${escapeHtml(result.title)}</a>
           </div>
-        ` : ''}
-        <div class="result-actions">
-          <a href="${result.url}" target="_blank" class="result-action">Open</a>
-          <button class="result-action delete" onclick="deleteResult(${result.id})">Delete</button>
+          <div class="result-url">${escapeHtml(result.url)}</div>
+          <div class="result-description">${escapeHtml(result.description || 'No description available')}</div>
+          ${keywords.length > 0 ? `
+            <div class="result-keywords">
+              ${keywords.map(k => `<span class="keyword-tag">${escapeHtml(k.trim())}</span>`).join('')}
+            </div>
+          ` : ''}
         </div>
+        <button class="result-delete" onclick="deleteResult(${result.id})" title="Delete this entry">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3,6 5,6 21,6"></polyline>
+            <path d="m19,6v14a2,2 0,0 1,-2,2H7a2,2 0,0 1,-2,-2V6m3,0V4a2,2 0,0 1,2,-2h4a2,2 0,0 1,2,2V6"></path>
+            <line x1="10" y1="11" x2="10" y2="17"></line>
+            <line x1="14" y1="11" x2="14" y2="17"></line>
+          </svg>
+        </button>
       </div>
     `;
   }).join('');
   
   resultsContainer.innerHTML = html;
+  
+  // Add click listeners to result cards for keyboard navigation support
+  const resultCards = resultsContainer.querySelectorAll('.result-card');
+  resultCards.forEach((card, index) => {
+    card.addEventListener('mouseenter', () => {
+      selectedIndex = index;
+      updateSelection(resultCards);
+    });
+  });
 }
 
 // Delete a result

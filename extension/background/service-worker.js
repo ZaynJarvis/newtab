@@ -103,9 +103,10 @@ async function handlePageIndexing(pageData, tab, sendResponse) {
 }
 
 // Handle search requests
-async function handleSearch(query, searchType = 'keyword') {
+async function handleSearch(query, searchType = 'combined') {
   try {
-    const endpoint = searchType === 'vector' ? 'search/vector' : 'search/keyword';
+    // Use the new combined search endpoint which does weighted search (60% keyword, 40% semantic)
+    const endpoint = 'search/combined';
     const response = await fetch(`${BACKEND_URL}/${endpoint}?query=${encodeURIComponent(query)}&limit=20`);
     
     if (!response.ok) {

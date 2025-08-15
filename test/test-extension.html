@@ -291,7 +291,11 @@
       <h2>Search Test</h2>
       <div class="search-type">
         <label>
-          <input type="radio" name="searchType" value="keyword" checked>
+          <input type="radio" name="searchType" value="combined" checked>
+          Combined Search (Default)
+        </label>
+        <label>
+          <input type="radio" name="searchType" value="keyword">
           Keyword Search
         </label>
         <label>
@@ -311,6 +315,7 @@
         <button class="test-button" onclick="testHealthCheck()">Test Health Check</button>
         <button class="test-button" onclick="testStats()">Get Statistics</button>
         <button class="test-button" onclick="testIndexPage()">Index Test Page</button>
+        <button class="test-button" onclick="testCombinedSearch()">Test Combined Search</button>
         <button class="test-button" onclick="testKeywordSearch()">Test Keyword Search</button>
         <button class="test-button" onclick="testVectorSearch()">Test Vector Search</button>
         <button class="test-button" onclick="testGetPages()">List All Pages</button>
@@ -332,7 +337,7 @@
 
   <script>
     const BACKEND_URL = 'http://localhost:8000';
-    let currentSearchType = 'keyword';
+    let currentSearchType = 'combined';
     let lastPageId = null;
 
     // Initialize
@@ -391,7 +396,14 @@
       resultsDiv.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>Searching...</p></div>';
 
       try {
-        const endpoint = currentSearchType === 'vector' ? 'search/vector' : 'search/keyword';
+        let endpoint;
+        if (currentSearchType === 'vector') {
+          endpoint = 'search/vector';
+        } else if (currentSearchType === 'keyword') {
+          endpoint = 'search/keyword';
+        } else {
+          endpoint = 'search/combined';
+        }
         logToConsole(`Performing ${currentSearchType} search for: "${query}"`, 'info');
         
         const response = await fetch(`${BACKEND_URL}/${endpoint}?query=${encodeURIComponent(query)}&limit=20`);
@@ -486,6 +498,18 @@
       }
     }
 
+    async function testCombinedSearch() {
+      logToConsole('Testing combined search for "programming"...', 'info');
+      try {
+        const response = await fetch(`${BACKEND_URL}/search/combined?query=programming&limit=5`);
+        const data = await response.json();
+        logToConsole(`Combined search found ${data.results.length} results`, 'success');
+        displayResults(data.results);
+      } catch (error) {
+        logToConsole(`Combined search failed: ${error.message}`, 'error');
+      }
+    }
+
     async function testKeywordSearch() {
       logToConsole('Testing keyword search for "Python"...', 'info');
       try {
@@ -530,6 +554,8 @@
       await new Promise(r => setTimeout(r, 500));
       await testIndexPage();
       await new Promise(r => setTimeout(r, 2000)); // Wait for AI processing
+      await testCombinedSearch();
+      await new Promise(r => setTimeout(r, 500));
       await testKeywordSearch();
       await new Promise(r => setTimeout(r, 500));
       await testVectorSearch();

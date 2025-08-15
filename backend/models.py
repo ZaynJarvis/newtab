@@ -54,6 +54,15 @@ class HealthResponse(BaseModel):
     total_pages: int
 
 
+class CombinedSearchResponse(BaseModel):
+    """Model for combined search results."""
+    results: List[dict]  # PageResponse + combined_score + keyword_score + semantic_score
+    total_found: int
+    query: str
+    keyword_results_count: int
+    semantic_results_count: int
+
+
 class IndexResponse(BaseModel):
     """Model for indexing response."""
     id: int
