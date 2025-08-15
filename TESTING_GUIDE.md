@@ -46,7 +46,7 @@ Use the test HTML page to test the backend API without loading the extension:
    ```
 
 2. **Open Test Interface**
-   - Navigate to `http://localhost:8080/test/test-extension.html`
+   - Navigate to `http://localhost:8081/test/test-extension.html`
 
 3. **Available Test Actions**
    - **Health Check**: Verify backend is running
@@ -79,6 +79,20 @@ python3 quick-test.py
 
 ## Troubleshooting
 
+### E2E Testing Results (Latest)
+✅ **Verified Working Features:**
+- Backend health check and statistics
+- Page indexing functionality
+- Keyword search with results display
+- Test interface loads correctly on `http://localhost:8081/test/test-extension.html`
+- Backend correctly configured for port 8000
+- No 422 errors in current implementation
+
+⚠️ **Known Limitations:**
+- **Vector/Semantic Search**: Requires `ARK_API_TOKEN` environment variable
+- Without API key, vector search returns 503 Service Unavailable
+- Backend runs in "mock mode" when API key is not provided
+
 ### 422 Error Fixed
 The 422 Unprocessable Entity error has been fixed by updating the query parameter from `q` to `query` in the service worker.
 
@@ -105,14 +119,28 @@ The 422 Unprocessable Entity error has been fixed by updating the query paramete
    - Error: "Address already in use"
    - Solution: Stop other servers or change the port in test-server.py
 
+5. **Server Won't Start - Missing API Key**
+   - Issue: "ARK_API_KEY environment variable is required but not set"
+   - Solution: Set the environment variable before starting
+   ```bash
+   export ARK_API_KEY="$ARK_API_TOKEN"
+   ```
+   - Note: Server now requires API key and will exit immediately if not set
+
+6. **Vector Search Not Working**
+   - Issue: "503 Service Unavailable" for semantic search (if server somehow starts without key)
+   - Solution: Ensure `ARK_API_TOKEN` environment variable is properly set
+   - Check backend logs for API client initialization status
+
 ## Test Workflow
 
 1. **Start Backend Server**
    ```bash
    cd backend
    source .venv/bin/activate
-   export ARK_API_KEY="your-api-key"  # Optional for AI features
-   uvicorn main:app --reload
+   # REQUIRED: Set API key (server will not start without it)
+   export ARK_API_KEY="$ARK_API_TOKEN"  # Required - server will exit if empty
+   uvicorn main:app --reload --host 0.0.0.0 --port 8000
    ```
 
 2. **Start Test Server** (Optional)
@@ -169,7 +197,9 @@ fetch('http://localhost:8000/stats').then(r => r.json()).then(console.log)
 
 ✅ Backend health check returns "healthy"
 ✅ No 422 errors in the backend logs
-✅ Search queries return results
+✅ Keyword search queries return results
 ✅ Pages can be indexed and retrieved
 ✅ Extension icon appears in Chrome toolbar
 ✅ New tab page loads with search interface
+✅ Test interface accessible at `localhost:8081/test/test-extension.html`
+⚠️ Vector search requires `ARK_API_TOKEN` environment variable

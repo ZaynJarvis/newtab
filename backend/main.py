@@ -1,6 +1,7 @@
 """Local Web Memory Backend Service - FastAPI with SQLite FTS5 and vector search."""
 
 import os
+import sys
 import time
 from datetime import datetime
 from typing import List, Optional
@@ -16,6 +17,14 @@ from models import (
 from database import Database
 from vector_store import VectorStore
 from api_client import ArkAPIClient
+
+# Check for required ARK_API_KEY environment variable
+ARK_API_KEY = os.getenv("ARK_API_KEY")
+if not ARK_API_KEY or ARK_API_KEY.strip() == "":
+    print("❌ ERROR: ARK_API_KEY environment variable is required but not set.")
+    print("Please set the ARK_API_KEY environment variable before starting the server.")
+    print("Example: export ARK_API_KEY=\"your-api-key-here\"")
+    sys.exit(1)
 
 # Initialize FastAPI app
 app = FastAPI(
