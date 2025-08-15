@@ -149,7 +149,7 @@ class Database:
         with self.get_connection() as conn:
             cursor = conn.execute("DELETE FROM pages WHERE id = ?", (page_id,))
             conn.commit()
-            return cursor.rowchanges > 0
+            return cursor.rowcount > 0
     
     def get_total_pages(self) -> int:
         """Get total number of pages in database."""
