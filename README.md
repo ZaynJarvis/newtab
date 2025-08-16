@@ -27,6 +27,20 @@ uv run python ../demo/test-data-generator.py
 
 **🎯 Ready in 30 seconds** → Visit [localhost:8000/docs](http://localhost:8000/docs) for API playground
 
+## 🧪 Testing
+
+### Quick Test
+
+```bash
+# Run simple backend tests (fastest)
+python run_tests.py simple
+
+# Run all tests
+python run_tests.py all
+```
+
+**📖 Full testing guide:** [E2E_TESTING_GUIDE.md](E2E_TESTING_GUIDE.md)
+
 ## 🚀 Features
 
 ### ✨ **Smart Indexing**

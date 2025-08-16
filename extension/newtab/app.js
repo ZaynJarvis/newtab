@@ -160,8 +160,24 @@ function initializeEventListeners() {
   // Search
   const searchInput = document.getElementById('searchInput');
   
-  searchInput.addEventListener('input', debounce(handleSearch, 300));
-  searchInput.addEventListener('keydown', handleKeyNavigation);
+  if (searchInput) {
+    searchInput.addEventListener('input', debounce(handleSearch, 300));
+    searchInput.addEventListener('keydown', handleKeyNavigation);
+    
+    // Add escape key handler for better accessibility
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        // Clear search results but keep focus on input
+        searchInput.value = '';
+        document.getElementById('searchResults').innerHTML = '';
+        searchResults = [];
+        selectedIndex = -1;
+        // Keep focus on search input
+        searchInput.focus();
+      }
+    });
+  }
   
   // Focus search input when clicking on empty areas of the page
   document.addEventListener('click', (e) => {
@@ -200,19 +216,36 @@ function initializeEventListeners() {
     }
   });
   
-  // Settings
-  document.getElementById('settingsToggle').addEventListener('click', openSettings);
-  document.getElementById('closeSettings').addEventListener('click', closeSettings);
-  document.getElementById('enableIndexing').addEventListener('change', handleIndexingToggle);
-  document.getElementById('showMetadata').addEventListener('change', handleMetadataToggle);
-  document.getElementById('addDomain').addEventListener('click', addExcludedDomain);
-  document.getElementById('newDomain').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-      addExcludedDomain();
-    }
-  });
-  document.getElementById('clearAllData').addEventListener('click', clearAllData);
-  document.getElementById('exportData').addEventListener('click', exportData);
+  // Settings - Add null checks for all elements
+  const settingsToggle = document.getElementById('settingsToggle');
+  if (settingsToggle) settingsToggle.addEventListener('click', openSettings);
+  
+  const closeSettings_btn = document.getElementById('closeSettings');
+  if (closeSettings_btn) closeSettings_btn.addEventListener('click', closeSettings);
+  
+  const enableIndexing = document.getElementById('enableIndexing');
+  if (enableIndexing) enableIndexing.addEventListener('change', handleIndexingToggle);
+  
+  const showMetadata = document.getElementById('showMetadata');
+  if (showMetadata) showMetadata.addEventListener('change', handleMetadataToggle);
+  
+  const addDomain = document.getElementById('addDomain');
+  if (addDomain) addDomain.addEventListener('click', addExcludedDomain);
+  
+  const newDomain = document.getElementById('newDomain');
+  if (newDomain) {
+    newDomain.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        addExcludedDomain();
+      }
+    });
+  }
+  
+  const clearAllData_btn = document.getElementById('clearAllData');
+  if (clearAllData_btn) clearAllData_btn.addEventListener('click', clearAllData);
+  
+  const exportData_btn = document.getElementById('exportData');
+  if (exportData_btn) exportData_btn.addEventListener('click', exportData);
 }
 
 // Keyboard Navigation
@@ -266,8 +299,17 @@ function updateSelection(resultCards) {
 
 // Search Functionality
 async function handleSearch() {
-  const query = document.getElementById('searchInput').value.trim();
+  const searchInput = document.getElementById('searchInput');
+  let query = searchInput.value.trim();
   const resultsContainer = document.getElementById('searchResults');
+  
+  // Input validation and sanitization
+  const MAX_QUERY_LENGTH = 200;
+  if (query.length > MAX_QUERY_LENGTH) {
+    query = query.substring(0, MAX_QUERY_LENGTH);
+    searchInput.value = query;
+    console.warn(`Search query truncated to ${MAX_QUERY_LENGTH} characters`);
+  }
   
   // Reset selection when search changes
   selectedIndex = -1;
@@ -278,11 +320,11 @@ async function handleSearch() {
     return;
   }
   
-  // Show loading state
+  // Show loading state with better UX
   resultsContainer.innerHTML = `
-    <div class="loading">
-      <div class="loading-spinner"></div>
-      <p>Searching...</p>
+    <div class="loading" role="status" aria-live="polite">
+      <div class="loading-spinner" aria-hidden="true"></div>
+      <p>Searching your browsing history...</p>
     </div>
   `;
   
@@ -499,19 +541,41 @@ async function deleteResult(id) {
 
 // Settings Functions
 function openSettings() {
-  document.getElementById('settingsView').classList.add('open');
-  window.location.hash = 'settings';
-  loadDetailedStatistics();
+  try {
+    const settingsView = document.getElementById('settingsView');
+    if (settingsView) {
+      settingsView.classList.add('open');
+      window.location.hash = 'settings';
+      loadDetailedStatistics();
+      
+      // Focus first interactive element in settings
+      setTimeout(() => {
+        const firstFocusable = settingsView.querySelector('button, input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        if (firstFocusable) {
+          firstFocusable.focus();
+        }
+      }, 300);
+    }
+  } catch (error) {
+    console.error('Error opening settings:', error);
+  }
 }
 
 function closeSettings() {
-  document.getElementById('settingsView').classList.remove('open');
-  window.location.hash = '';
-  
-  // Refocus search input after closing settings
-  setTimeout(() => {
-    focusSearchInput();
-  }, 100);
+  try {
+    const settingsView = document.getElementById('settingsView');
+    if (settingsView) {
+      settingsView.classList.remove('open');
+      window.location.hash = '';
+      
+      // Refocus search input after closing settings
+      setTimeout(() => {
+        focusSearchInput();
+      }, 300); // Increased timeout to match animation
+    }
+  } catch (error) {
+    console.error('Error closing settings:', error);
+  }
 }
 
 async function loadSettings() {
@@ -543,12 +607,20 @@ async function handleIndexingToggle(e) {
   const enabled = e.target.checked;
   
   try {
-    const storage = await chrome.storage.local.get('localWebMemory');
-    const settings = storage.localWebMemory || {};
-    settings.indexingEnabled = enabled;
-    await chrome.storage.local.set({ localWebMemory: settings });
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      const storage = await chrome.storage.local.get('localWebMemory');
+      const settings = storage.localWebMemory || {};
+      settings.indexingEnabled = enabled;
+      await chrome.storage.local.set({ localWebMemory: settings });
+    } else {
+      // Fallback for debugging outside Chrome extension
+      const localSettings = localStorage.getItem('localWebMemory');
+      const settings = localSettings ? JSON.parse(localSettings) : {};
+      settings.indexingEnabled = enabled;
+      localStorage.setItem('localWebMemory', JSON.stringify(settings));
+    }
   } catch (error) {
-    console.error('Error updating settings:', error);
+    console.error('Error updating indexing settings:', error);
     e.target.checked = !enabled; // Revert on error
   }
 }
