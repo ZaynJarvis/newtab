@@ -195,7 +195,7 @@ app.add_middleware(
 )
 
 # Initialize components
-db = Database()
+db = Database(config.database_file)
 vector_store = VectorStore(dimension=config.vector_dimension)
 ark_client = None
 
