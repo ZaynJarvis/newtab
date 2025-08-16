@@ -1,4 +1,4 @@
-"""Pytest configuration and fixtures for Local Web Memory Backend tests."""
+"""Pytest configuration and fixtures for New Tab Backend tests."""
 
 import asyncio
 import os

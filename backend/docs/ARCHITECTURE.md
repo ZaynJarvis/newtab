@@ -1,4 +1,4 @@
-# Local Web Memory Backend - Architecture
+# New Tab Backend - Architecture
 
 ## Project Structure
 

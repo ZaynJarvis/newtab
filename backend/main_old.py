@@ -1,4 +1,4 @@
-"""Local Web Memory Backend Service - FastAPI with SQLite FTS5 and vector search."""
+"""New Tab Backend Service - FastAPI with SQLite FTS5 and vector search."""
 
 import asyncio
 import os
@@ -36,9 +36,9 @@ except Exception as e:
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="Local Web Memory Backend API",
+    title="New Tab Backend API",
     description="""
-    ## 🔍 Local Web Memory Backend Service
+    ## 🔍 New Tab Backend Service
 
     A FastAPI-powered service for local web page indexing and intelligent search with AI-generated keywords and vector embeddings.
 
@@ -62,9 +62,9 @@ app = FastAPI(
     """,
     version="2.0.0",
     contact={
-        "name": "Local Web Memory Team",
-        "url": "https://github.com/localwebmemory/backend",
-        "email": "support@localwebmemory.dev"
+        "name": "New Tab Team",
+        "url": "https://github.com/newtab/backend",
+        "email": "support@newtab.dev"
     },
     license_info={
         "name": "MIT License",
@@ -152,7 +152,7 @@ async def process_page_ai(page_id: int, page: PageCreate):
 @app.on_event("startup")
 async def startup_event():
     """Initialize the application on startup."""
-    print("🚀 Starting Local Web Memory Backend...")
+    print("🚀 Starting New Tab Backend...")
     
     # Load existing vectors into memory
     try:
@@ -181,7 +181,7 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Clean up resources on shutdown."""
-    print("🛑 Shutting down Local Web Memory Backend...")
+    print("🛑 Shutting down New Tab Backend...")
     
     # Save query embedding cache before shutdown
     if ark_client:
@@ -225,7 +225,7 @@ atexit.register(save_cache_on_exit)             # Python exit
 async def root():
     """Root endpoint with service information."""
     return {
-        "service": "Local Web Memory Backend",
+        "service": "New Tab Backend",
         "version": "1.0.0",
         "status": "running",
         "endpoints": {
@@ -815,7 +815,7 @@ async def cleanup_query_cache():
 if __name__ == "__main__":
     import uvicorn
     
-    print("🚀 Starting Local Web Memory Backend Server...")
+    print("🚀 Starting New Tab Backend Server...")
     print("📚 API Documentation: http://localhost:8000/docs")
     print("🔍 Health Check: http://localhost:8000/health")
     

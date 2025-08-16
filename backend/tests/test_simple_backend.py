@@ -1,4 +1,4 @@
-"""Simple backend API tests for Local Web Memory Backend."""
+"""Simple backend API tests for New Tab Backend."""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -29,7 +29,7 @@ class TestSimpleBackendAPI:
             assert response.status_code == 200
             
             data = response.json()
-            assert data["service"] == "Local Web Memory Backend"
+            assert data["service"] == "New Tab Backend"
             assert data["version"] == "2.0.0"
             assert data["status"] == "running"
     

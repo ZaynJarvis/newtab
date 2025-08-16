@@ -1,4 +1,4 @@
-# Dockerfile for Local Web Memory Backend Service
+# Dockerfile for New Tab Backend Service
 # Multi-stage build for optimized production image
 
 # Build stage
@@ -87,7 +87,7 @@ mkdir -p /app/data /app/logs
 chmod 755 /app/data /app/logs
 
 # Log configuration
-echo "Starting Local Web Memory Backend..."
+echo "Starting New Tab Backend..."
 echo "Host: $HOST"
 echo "Port: $PORT"
 echo "Log Level: $LOG_LEVEL"
@@ -159,11 +159,11 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 CMD ["./start.sh"]
 
 # Labels for metadata
-LABEL maintainer="Local Web Memory Team <support@localwebmemory.dev>" \
+LABEL maintainer="New Tab Team <support@newtab.dev>" \
       version="2.0.0" \
-      description="Local Web Memory Backend Service - FastAPI with SQLite FTS5 and vector search" \
-      org.opencontainers.image.title="Local Web Memory Backend" \
+      description="New Tab Backend Service - FastAPI with SQLite FTS5 and vector search" \
+      org.opencontainers.image.title="New Tab Backend" \
       org.opencontainers.image.description="A FastAPI-powered service for local web page indexing and intelligent search" \
       org.opencontainers.image.version="2.0.0" \
-      org.opencontainers.image.vendor="Local Web Memory Team" \
+      org.opencontainers.image.vendor="New Tab Team" \
       org.opencontainers.image.licenses="MIT"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Mock data generator for testing the Local Web Memory backend."""
+"""Mock data generator for testing the New Tab backend."""
 
 import asyncio
 import json
@@ -75,7 +75,7 @@ SAMPLE_PAGES = [
 
 
 class MockDataGenerator:
-    """Generate mock data for testing the Local Web Memory backend."""
+    """Generate mock data for testing the New Tab backend."""
     
     def __init__(self, base_url: str = "http://localhost:8000"):
         """Initialize the mock data generator."""
@@ -261,7 +261,7 @@ class MockDataGenerator:
 
 async def main():
     """Main function to run the mock data generator."""
-    print("🔧 Local Web Memory Backend - Mock Data Generator")
+    print("🔧 New Tab Backend - Mock Data Generator")
     print("=" * 60)
     
     generator = MockDataGenerator()

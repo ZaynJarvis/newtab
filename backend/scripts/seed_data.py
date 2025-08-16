@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Seed data script for Local Web Memory Backend."""
+"""Seed data script for New Tab Backend."""
 
 import asyncio
 import json
@@ -77,7 +77,7 @@ SAMPLE_PAGES = [
 
 async def seed_database():
     """Seed the database with sample pages."""
-    print("🌱 Seeding Local Web Memory Backend with sample data...")
+    print("🌱 Seeding New Tab Backend with sample data...")
     
     try:
         # Initialize components
@@ -169,7 +169,7 @@ async def seed_database():
 def main():
     """Main entry point."""
     if len(sys.argv) > 1 and sys.argv[1] in ["--help", "-h"]:
-        print("Local Web Memory Backend - Data Seeding Script")
+        print("New Tab Backend - Data Seeding Script")
         print("")
         print("This script populates the database with sample web pages for testing.")
         print("")

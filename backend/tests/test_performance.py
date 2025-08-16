@@ -1,4 +1,4 @@
-"""Performance benchmark tests for Local Web Memory Backend."""
+"""Performance benchmark tests for New Tab Backend."""
 
 import pytest
 import time

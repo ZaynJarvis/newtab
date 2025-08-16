@@ -1,4 +1,4 @@
-"""Comprehensive E2E tests for Local Web Memory Chrome Extension and Backend Integration."""
+"""Comprehensive E2E tests for New Tab Chrome Extension and Backend Integration."""
 
 import pytest
 import asyncio

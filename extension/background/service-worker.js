@@ -14,7 +14,7 @@ chrome.runtime.onInstalled.addListener(() => {
       indexingStatus: 'idle'
     }
   });
-  console.log('Local Web Memory extension installed');
+  console.log('New Tab extension installed');
 });
 
 // Listen for messages from content script

@@ -1,4 +1,4 @@
-# 🔍 Local Web Memory
+# 🔍 New Tab
 
 > **AI-powered personal web indexing with privacy-first local search**
 
@@ -13,7 +13,7 @@ A privacy-first Chrome extension that **automatically indexes** your browsing hi
 
 ```bash
 # Clone and setup backend
-git clone <repository-url>
+git clone https://github.com/ZaynJarvis/newtab
 cd newtab/backend
 uv sync
 
@@ -295,7 +295,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 <div align="center">
 
-**⭐ Star this repo if Local Web Memory helps you rediscover the web!**
+**⭐ Star this repo if New Tab helps you rediscover the web!**
 
 *Built with ❤️ for developers who never want to lose that perfect Stack Overflow answer again*
 

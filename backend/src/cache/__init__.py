@@ -1,1 +1,1 @@
-"""Caching implementations for Local Web Memory Backend."""
+"""Caching implementations for New Tab Backend."""

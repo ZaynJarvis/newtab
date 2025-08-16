@@ -1,4 +1,4 @@
-"""Monitoring and metrics endpoints for Local Web Memory Backend."""
+"""Monitoring and metrics endpoints for New Tab Backend."""
 
 import time
 import asyncio
@@ -476,7 +476,7 @@ async def get_service_status():
         health_status = await get_detailed_health()
         
         return {
-            "service": "Local Web Memory Backend",
+            "service": "New Tab Backend",
             "version": "2.0.0",
             "status": health_status.status,
             "uptime_seconds": health_status.uptime_seconds,

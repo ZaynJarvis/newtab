@@ -785,7 +785,7 @@ async function exportData() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `local-web-memory-export-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `new-tab-export-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
     

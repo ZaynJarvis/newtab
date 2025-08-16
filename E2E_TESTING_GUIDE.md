@@ -1,6 +1,6 @@
-# E2E Testing Guide for Local Web Memory
+# E2E Testing Guide for New Tab
 
-This guide provides comprehensive instructions for running end-to-end tests for the Local Web Memory Chrome Extension and Backend.
+This guide provides comprehensive instructions for running end-to-end tests for the New Tab Chrome Extension and Backend.
 
 ## 🚀 Quick Start
 

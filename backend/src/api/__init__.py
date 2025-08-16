@@ -1,1 +1,1 @@
-"""API modules for Local Web Memory Backend."""
+"""API modules for New Tab Backend."""

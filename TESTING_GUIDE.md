@@ -1,6 +1,6 @@
-# Testing Guide for Local Web Memory Backend
+# Testing Guide for New Tab Backend
 
-This guide provides comprehensive instructions for running and understanding the test suite for the Local Web Memory Backend project.
+This guide provides comprehensive instructions for running and understanding the test suite for the New Tab Backend project.
 
 ## 📋 Table of Contents
 
@@ -15,7 +15,7 @@ This guide provides comprehensive instructions for running and understanding the
 
 ## 🔍 Overview
 
-The Local Web Memory Backend includes a comprehensive test suite covering:
+The New Tab Backend includes a comprehensive test suite covering:
 
 - **Unit Tests**: Individual component testing
 - **Integration Tests**: API endpoint testing
@@ -217,8 +217,8 @@ pytest tests/
 
 ```bash
 # Build and run tests in Docker
-docker build -t localwebmemory-test ./backend
-docker run --rm localwebmemory-test ./start.sh test
+docker build -t newtab-test ./backend
+docker run --rm newtab-test ./start.sh test
 
 # Using docker-compose
 docker-compose -f docker-compose.dev.yml --profile testing up test-runner
@@ -644,4 +644,4 @@ async def test_async_function():
 
 ---
 
-This testing guide ensures comprehensive coverage and reliable quality assurance for the Local Web Memory Backend project.
+This testing guide ensures comprehensive coverage and reliable quality assurance for the New Tab Backend project.

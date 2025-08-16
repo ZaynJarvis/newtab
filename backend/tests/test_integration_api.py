@@ -1,4 +1,4 @@
-"""Integration tests for API endpoints of Local Web Memory Backend."""
+"""Integration tests for API endpoints of New Tab Backend."""
 
 import pytest
 from fastapi.testclient import TestClient

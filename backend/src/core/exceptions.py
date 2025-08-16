@@ -1,4 +1,4 @@
-"""Custom exceptions and error handling for Local Web Memory Backend."""
+"""Custom exceptions and error handling for New Tab Backend."""
 
 from typing import Any, Dict, Optional
 from fastapi import HTTPException, Request, status
@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 
 
 class LocalWebMemoryException(Exception):
-    """Base exception for Local Web Memory application."""
+    """Base exception for New Tab application."""
     
     def __init__(
         self,

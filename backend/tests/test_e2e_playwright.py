@@ -1,4 +1,4 @@
-"""End-to-end tests using Playwright for Local Web Memory Backend."""
+"""End-to-end tests using Playwright for New Tab Backend."""
 
 import pytest
 import asyncio
@@ -101,7 +101,7 @@ async def test_api_root_endpoint(test_server: TestServer):
         assert response.status_code == 200
         
         data = response.json()
-        assert data["service"] == "Local Web Memory Backend"
+        assert data["service"] == "New Tab Backend"
         assert data["version"] == "2.0.0"
         assert data["status"] == "running"
         assert "endpoints" in data
@@ -123,7 +123,7 @@ async def test_api_docs_accessibility(test_server: TestServer):
         assert response.status_code == 200
         
         schema = response.json()
-        assert schema["info"]["title"] == "Local Web Memory Backend API"
+        assert schema["info"]["title"] == "New Tab Backend API"
         assert schema["info"]["version"] == "2.0.0"
 
 

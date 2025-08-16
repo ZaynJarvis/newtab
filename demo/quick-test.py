@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Quick validation test for the Local Web Memory backend."""
+"""Quick validation test for the New Tab backend."""
 
 import asyncio
 import httpx

@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-✅ **IMPLEMENTATION COMPLETED** - This document outlines the completed implementation of frequency and visit tracking for the Local Web Memory Chrome extension with Adaptive Replacement Cache (ARC) style sorting. The implementation enhances search ranking by combining frequency of access, recency of visits, and semantic relevance to provide personalized and contextually relevant search results.
+✅ **IMPLEMENTATION COMPLETED** - This document outlines the completed implementation of frequency and visit tracking for the New Tab Chrome extension with Adaptive Replacement Cache (ARC) style sorting. The implementation enhances search ranking by combining frequency of access, recency of visits, and semantic relevance to provide personalized and contextually relevant search results.
 
 ## ⚡ Quick Implementation Summary
 
@@ -1155,7 +1155,7 @@ async def search_with_arc(...):
 
 ## Conclusion
 
-This implementation plan provides a comprehensive approach to adding frequency and visit tracking with ARC-style scoring to the Local Web Memory Chrome extension. The phased approach ensures systematic development while maintaining system stability and performance.
+This implementation plan provides a comprehensive approach to adding frequency and visit tracking with ARC-style scoring to the New Tab Chrome extension. The phased approach ensures systematic development while maintaining system stability and performance.
 
 **Key Benefits:**
 - Personalized search results based on user behavior

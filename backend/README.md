@@ -1,4 +1,4 @@
-# Local Web Memory Backend
+# New Tab Backend
 
 A FastAPI-powered service for local web page indexing and intelligent search with AI-generated keywords and vector embeddings.
 

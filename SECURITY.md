@@ -11,7 +11,7 @@ We release security updates for the following versions:
 
 ## Privacy & Data Handling
 
-Local Web Memory is designed with **privacy-first** principles:
+New Tab is designed with **privacy-first** principles:
 
 ### What We Store Locally
 - ✅ Web page URLs, titles, and extracted content
@@ -67,7 +67,7 @@ We take security seriously. If you discover a security vulnerability, please fol
 ### Reporting Process
 
 1. **DO NOT** create a public GitHub issue for security vulnerabilities
-2. **Email** security concerns to: [security@localwebmemory.dev] (replace with actual email)
+2. **Email** security concerns to: [security@newtab.dev] (replace with actual email)
 3. **Include** detailed information:
    - Description of the vulnerability
    - Steps to reproduce
@@ -128,4 +128,4 @@ We take security seriously. If you discover a security vulnerability, please fol
 - **CCPA**: User privacy rights, data transparency
 - **Chrome Web Store**: Compliance with extension store policies
 
-For questions about this security policy, please contact: [security@localwebmemory.dev]
+For questions about this security policy, please contact: [security@newtab.dev]

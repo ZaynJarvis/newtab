@@ -1,4 +1,4 @@
-# CI/CD Pipeline for Local Web Memory Backend
+# CI/CD Pipeline for New Tab Backend
 # Comprehensive testing, building, and deployment workflow
 
 name: CI/CD Pipeline
@@ -31,7 +31,7 @@ env:
   
   # Docker configuration
   DOCKER_REGISTRY: ghcr.io
-  IMAGE_NAME: localwebmemory/backend
+  IMAGE_NAME: newtab/backend
 
 jobs:
   # Job 1: Code Quality and Linting
@@ -402,7 +402,7 @@ jobs:
         prerelease: ${{ contains(steps.version.outputs.VERSION, '-') }}
         generate_release_notes: true
         body: |
-          ## 🚀 Local Web Memory Backend ${{ steps.version.outputs.VERSION }}
+          ## 🚀 New Tab Backend ${{ steps.version.outputs.VERSION }}
           
           ### Docker Images
           - `${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.VERSION }}`

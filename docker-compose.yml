@@ -1,5 +1,5 @@
-# Docker Compose for Local Web Memory - Full Stack Setup
-# This file orchestrates the complete Local Web Memory application
+# Docker Compose for New Tab - Full Stack Setup
+# This file orchestrates the complete New Tab application
 
 services:
   # Backend API Service
@@ -7,7 +7,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: localwebmemory-backend
+    container_name: newtab-backend
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -45,7 +45,7 @@ services:
       # Development volume (uncomment for development)
       # - ./backend/src:/app/src:ro
     networks:
-      - localwebmemory_network
+      - newtab_network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -54,13 +54,13 @@ services:
       start_period: 40s
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`api.localwebmemory.local`)"
+      - "traefik.http.routers.backend.rule=Host(`api.newtab.local`)"
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
 
   # Nginx for serving static extension files and reverse proxy
   nginx:
     image: nginx:alpine
-    container_name: localwebmemory-nginx
+    container_name: newtab-nginx
     restart: unless-stopped
     ports:
       - "80:80"
@@ -73,7 +73,7 @@ services:
       # SSL certificates (if using HTTPS)
       # - ./nginx/ssl:/etc/nginx/ssl:ro
     networks:
-      - localwebmemory_network
+      - newtab_network
     depends_on:
       - backend
     healthcheck:
@@ -83,19 +83,19 @@ services:
       retries: 3
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.nginx.rule=Host(`localwebmemory.local`)"
+      - "traefik.http.routers.nginx.rule=Host(`newtab.local`)"
 
   # Redis for caching (optional, for scaling)
   redis:
     image: redis:7-alpine
-    container_name: localwebmemory-redis
+    container_name: newtab-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
-      - localwebmemory_network
+      - newtab_network
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -108,7 +108,7 @@ services:
   # Monitoring with Prometheus (optional)
   prometheus:
     image: prom/prometheus:latest
-    container_name: localwebmemory-prometheus
+    container_name: newtab-prometheus
     restart: unless-stopped
     ports:
       - "9090:9090"
@@ -116,7 +116,7 @@ services:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     networks:
-      - localwebmemory_network
+      - newtab_network
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -130,7 +130,7 @@ services:
   # Grafana for dashboards (optional)
   grafana:
     image: grafana/grafana:latest
-    container_name: localwebmemory-grafana
+    container_name: newtab-grafana
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -142,7 +142,7 @@ services:
       - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
       - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
     networks:
-      - localwebmemory_network
+      - newtab_network
     depends_on:
       - prometheus
     profiles:
@@ -150,7 +150,7 @@ services:
 
 # Network configuration
 networks:
-  localwebmemory_network:
+  newtab_network:
     driver: bridge
     ipam:
       config:

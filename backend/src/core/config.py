@@ -1,4 +1,4 @@
-"""Configuration settings for the Local Web Memory backend service."""
+"""Configuration settings for the New Tab backend service."""
 
 import os
 from typing import Optional
@@ -64,6 +64,10 @@ class Settings(BaseSettings):
     vector_dimension: int = Field(
         default=2048,
         description="Dimension of the embedding vectors"
+    )
+    max_vectors: int = Field(
+        default=10000,
+        description="Maximum number of vectors to store in memory"
     )
     
     # API Client Configuration

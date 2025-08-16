@@ -1,4 +1,4 @@
-"""Playwright test suite for Local Web Memory Chrome Extension."""
+"""Playwright test suite for New Tab Chrome Extension."""
 
 import pytest
 import asyncio
@@ -270,7 +270,7 @@ async def test_popup_functionality(browser: BrowserContext, test_server: TestSer
     
     # Verify popup elements are present
     # This test ensures the popup HTML structure is valid
-    assert await page.title() == "Local Web Memory"
+    assert await page.title() == "New Tab"
     
     await page.close()
 

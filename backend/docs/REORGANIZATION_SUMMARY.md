@@ -1,7 +1,7 @@
 # Backend Reorganization Summary
 
 ## Overview
-Successfully reorganized the Local Web Memory Backend from a flat structure to a professional, modular architecture.
+Successfully reorganized the New Tab Backend from a flat structure to a professional, modular architecture.
 
 ## Before & After Structure
 

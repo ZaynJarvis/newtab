@@ -1,4 +1,4 @@
-# 🚀 Local Web Memory Extension - Quick Start Guide
+# 🚀 New Tab Extension - Quick Start Guide
 
 ## Installation in 3 Minutes
 
@@ -25,7 +25,7 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ✅ Extension installed when you see the extension card appear
 
 ### Step 3: Start Using (30 seconds)
-1. **Pin the extension**: Click puzzle piece icon → Pin "Local Web Memory"
+1. **Pin the extension**: Click puzzle piece icon → Pin "New Tab"
 2. **Visit any webpage** - it will auto-index in the background
 3. **Open a new tab** - you'll see the search interface
 4. **Search your history** - type anything you remember!
@@ -138,7 +138,7 @@ localStorage.debug = 'true'
 ### New Tab Components
 ```
 ┌─────────────────────────────────────┐
-│      Local Web Memory               │ <- Click for home
+│      New Tab               │ <- Click for home
 │   [🔍 Search bar............] [→]   │ <- Type & Enter
 │   ○ Keyword  ○ Semantic            │ <- Search modes
 ├─────────────────────────────────────┤
@@ -153,7 +153,7 @@ localStorage.debug = 'true'
 ### Popup Components
 ```
 ┌──────────────────────┐
-│  Local Web Memory    │
+│  New Tab    │
 │  [🟢] Indexing On    │ <- Toggle
 ├──────────────────────┤
 │  Backend: Online     │ <- Status

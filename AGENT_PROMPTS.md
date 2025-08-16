@@ -2,7 +2,7 @@
 
 ## Agent A: Backend Track Prompt
 ```
-You are implementing the backend service for a Local Web Memory Chrome extension. 
+You are implementing the backend service for a New Tab Chrome extension. 
 
 CONTEXT: Build a FastAPI service that provides local indexing and search for web pages. The extension will send page content to be indexed with AI-generated keywords and vector embeddings.
 
@@ -38,7 +38,7 @@ Start with Phase 1A immediately. Build fast, test thoroughly.
 
 ## Agent B: Extension Track Prompt  
 ```
-You are implementing the Chrome extension for a Local Web Memory system.
+You are implementing the Chrome extension for a New Tab system.
 
 CONTEXT: Build a Chrome Extension (Manifest V3) that extracts content from visited web pages and sends it to a local backend for indexing. Users search their browsing history from a new tab interface.
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Debug wrapper server for the Local Web Memory Chrome extension.
+Debug wrapper server for the New Tab Chrome extension.
 Serves as a wrapper around the newtab page for debugging purposes.
 """
 
@@ -60,7 +60,7 @@ def main():
     """Run the debug wrapper server."""
     print(f"""
 ╔══════════════════════════════════════════════════════════════╗
-║        Local Web Memory Extension - Debug Wrapper            ║
+║        New Tab Extension - Debug Wrapper            ║
 ╚══════════════════════════════════════════════════════════════╝
 
 📁 Serving from: {TEST_DIR.parent}

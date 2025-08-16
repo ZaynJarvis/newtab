@@ -1,6 +1,6 @@
-# Contributing to Local Web Memory
+# Contributing to New Tab
 
-First off, thank you for considering contributing to Local Web Memory! 🎉
+First off, thank you for considering contributing to New Tab! 🎉
 
 ## Code of Conduct
 

@@ -10,9 +10,10 @@ from collections import defaultdict
 class VectorStore:
     """In-memory vector store for semantic similarity search."""
     
-    def __init__(self, dimension: int = 1536):
-        """Initialize vector store with specified dimension."""
+    def __init__(self, dimension: int = 1536, max_vectors: int = 10000):
+        """Initialize vector store with specified dimension and capacity limit."""
         self.dimension = dimension
+        self.max_vectors = max_vectors
         self.vectors: Dict[int, np.ndarray] = {}  # page_id -> vector
         self.metadata: Dict[int, PageResponse] = {}  # page_id -> page data
     
@@ -21,6 +22,12 @@ class VectorStore:
         if len(vector) != self.dimension:
             raise ValueError(f"Vector dimension {len(vector)} doesn't match expected {self.dimension}")
         
+        # Check capacity limit and evict oldest if needed
+        if len(self.vectors) >= self.max_vectors and page_id not in self.vectors:
+            oldest_page_id = min(self.vectors.keys())
+            self.remove_vector(oldest_page_id)
+            print(f"🗑️ Evicted oldest vector (page {oldest_page_id}) due to capacity limit")
+        
         # Normalize the vector for better similarity computation
         vector_array = np.array(vector, dtype=np.float32)
         norm = np.linalg.norm(vector_array)
@@ -28,7 +35,19 @@ class VectorStore:
             vector_array = vector_array / norm
         
         self.vectors[page_id] = vector_array
-        self.metadata[page_id] = page_data
+        # Store lightweight metadata copy instead of full PageResponse
+        lightweight_metadata = PageResponse(
+            id=page_data.id,
+            url=page_data.url,
+            title=page_data.title,
+            description=page_data.description,
+            keywords=page_data.keywords,
+            content=page_data.content[:500] if page_data.content else "",  # Truncate content for memory
+            favicon_url=page_data.favicon_url,
+            created_at=page_data.created_at,
+            vector_embedding=None  # Don't store embedding twice
+        )
+        self.metadata[page_id] = lightweight_metadata
     
     def remove_vector(self, page_id: int):
         """Remove a vector from the store."""
@@ -239,9 +258,20 @@ class VectorStore:
         memory_usage_bytes = len(self.vectors) * self.dimension * 4  # 4 bytes per float32
         memory_usage_mb = memory_usage_bytes / (1024 * 1024)
         
+        # Calculate metadata memory usage (rough estimate)
+        metadata_memory_bytes = sum(
+            len(str(page.url)) + len(str(page.title)) + len(str(page.content)) + 
+            len(str(page.description or "")) + len(str(page.keywords or "")) + 100  # overhead
+            for page in self.metadata.values()
+        )
+        metadata_memory_mb = metadata_memory_bytes / (1024 * 1024)
+        
         return {
             "total_vectors": len(self.vectors),
             "dimension": self.dimension,
+            "max_vectors": self.max_vectors,
             "avg_norm": float(avg_norm),
-            "memory_usage_mb": round(memory_usage_mb, 2)
+            "vector_memory_mb": round(memory_usage_mb, 2),
+            "metadata_memory_mb": round(metadata_memory_mb, 2),
+            "total_memory_mb": round(memory_usage_mb + metadata_memory_mb, 2)
         }

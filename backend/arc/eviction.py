@@ -1,5 +1,5 @@
 """
-Eviction policies for the Local Web Memory system.
+Eviction policies for the New Tab system.
 
 This module provides different eviction strategies that can work
 with the ARC cache or standalone.

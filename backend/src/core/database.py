@@ -1,4 +1,4 @@
-"""Database operations with SQLite FTS5 for the Local Web Memory backend."""
+"""Database operations with SQLite FTS5 for the New Tab backend."""
 
 import sqlite3
 import json

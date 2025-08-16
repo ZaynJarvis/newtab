@@ -1,4 +1,4 @@
-# Local Web Memory Extension - Development & Usage Guide
+# New Tab Extension - Development & Usage Guide
 
 ## 📋 Table of Contents
 - [Quick Start](#quick-start)
@@ -37,7 +37,7 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 # 3. Verify installation
 # - Extension icon should appear in toolbar
-# - New tab should show Local Web Memory interface
+# - New tab should show New Tab interface
 ```
 
 ## 💻 Development Setup
@@ -216,7 +216,7 @@ GET http://localhost:8000/stats
 
 #### Service Worker Debugging
 1. Go to `chrome://extensions/`
-2. Find "Local Web Memory"
+2. Find "New Tab"
 3. Click "Details"
 4. Click "Service Worker" link
 5. DevTools opens with service worker context
@@ -283,7 +283,7 @@ handleSearch()
 
 **Solutions**:
 1. Check extension is enabled in `chrome://extensions/`
-2. Pin extension: Click puzzle piece → Pin "Local Web Memory"
+2. Pin extension: Click puzzle piece → Pin "New Tab"
 3. Reload extension: Disable and re-enable
 4. Check for manifest errors in extension page
 
@@ -399,4 +399,4 @@ handleSearch()
 
 **Last Updated**: January 2025
 **Version**: 1.0.0
-**Author**: Local Web Memory Team
+**Author**: New Tab Team

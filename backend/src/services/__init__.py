@@ -1,1 +1,1 @@
-"""External services for Local Web Memory Backend."""
+"""External services for New Tab Backend."""

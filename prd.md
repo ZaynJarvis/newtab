@@ -1,4 +1,4 @@
-# Local Web Memory: Chrome New Tab Indexer + Local Vector Store
+# New Tab: Chrome New Tab Indexer + Local Vector Store
 
 TL;DR
 
@@ -178,7 +178,7 @@ A Chrome extension that automatically indexes the content of every unique webpag
 
 ## Narrative
 
-Every day, Alex—a busy product manager—juggles dozens of tabs, researching competitors, reading documentation, and referencing past project pages. Weeks later, Alex struggles to recall a specific competitor’s pricing page, remembering only a vague feature mentioned. Instead of sifting through browser history or bookmarks, Alex opens a new tab. The search bar, powered by Local Web Memory, instantly surfaces the exact page using a few keywords and a semantic search. The result card shows a concise description and the original URL, letting Alex jump right back in. With all data stored locally, Alex’s privacy is never compromised. Over time, Alex spends less time searching and more time building, confident that every important page is just a search away.
+Every day, Alex—a busy product manager—juggles dozens of tabs, researching competitors, reading documentation, and referencing past project pages. Weeks later, Alex struggles to recall a specific competitor’s pricing page, remembering only a vague feature mentioned. Instead of sifting through browser history or bookmarks, Alex opens a new tab. The search bar, powered by New Tab, instantly surfaces the exact page using a few keywords and a semantic search. The result card shows a concise description and the original URL, letting Alex jump right back in. With all data stored locally, Alex’s privacy is never compromised. Over time, Alex spends less time searching and more time building, confident that every important page is just a search away.
 
 ---
 

@@ -1,4 +1,4 @@
-"""Comprehensive UI/UX testing for Local Web Memory Chrome Extension.
+"""Comprehensive UI/UX testing for New Tab Chrome Extension.
 This file has been deprecated. Use test_e2e_extension.py instead.
 """
 

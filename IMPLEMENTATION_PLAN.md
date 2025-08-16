@@ -1,4 +1,4 @@
-# Local Web Memory - Master Implementation Plan
+# New Tab - Master Implementation Plan
 
 ## Project Overview
 Build a privacy-first Chrome extension that automatically indexes visited web pages locally, generates keywords/descriptions via LLM, and provides instant semantic search from a new tab interface.

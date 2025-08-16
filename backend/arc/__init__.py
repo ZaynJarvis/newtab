@@ -1,4 +1,4 @@
-"""ARC (Adaptive Replacement Cache) algorithm implementation for Local Web Memory."""
+"""ARC (Adaptive Replacement Cache) algorithm implementation for New Tab."""
 
 from .arc_cache import ARCCache
 from .eviction import EvictionPolicy

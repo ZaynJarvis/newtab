@@ -1,1 +1,1 @@
-"""Tests for Local Web Memory Backend."""
+"""Tests for New Tab Backend."""

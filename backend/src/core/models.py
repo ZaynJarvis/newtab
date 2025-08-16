@@ -1,4 +1,4 @@
-"""Data models for the Local Web Memory backend service."""
+"""Data models for the New Tab backend service."""
 
 from datetime import datetime
 from typing import List, Optional

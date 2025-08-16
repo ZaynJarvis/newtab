@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Simple test runner for Local Web Memory E2E tests."""
+"""Simple test runner for New Tab E2E tests."""
 
 import subprocess
 import sys
@@ -81,7 +81,7 @@ def check_dependencies():
 
 def main():
     """Main test runner."""
-    print("🚀 Local Web Memory E2E Test Runner")
+    print("🚀 New Tab E2E Test Runner")
     print("=" * 60)
     
     # Parse command line arguments
@@ -171,7 +171,7 @@ def main():
 def print_help():
     """Print help information."""
     print("""
-🧪 Local Web Memory Test Runner
+🧪 New Tab Test Runner
 
 Usage:
     python run_tests.py [test_type]

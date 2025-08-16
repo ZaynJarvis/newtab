@@ -1,6 +1,6 @@
-# Docker Guide for Local Web Memory
+# Docker Guide for New Tab
 
-This guide provides comprehensive instructions for running Local Web Memory using Docker, from development to production deployment.
+This guide provides comprehensive instructions for running New Tab using Docker, from development to production deployment.
 
 ## 📋 Table of Contents
 
@@ -433,7 +433,7 @@ Build custom images:
 
 ```bash
 # Build specific target
-docker build --target production -t localwebmemory:prod ./backend
+docker build --target production -t newtab:prod ./backend
 
 # Build with build args
 docker build --build-arg BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ') ./backend
@@ -451,13 +451,13 @@ Deploy to Docker Swarm:
 docker swarm init
 
 # Deploy stack
-docker stack deploy -c docker-compose.yml localwebmemory
+docker stack deploy -c docker-compose.yml newtab
 
 # Scale services
-docker service scale localwebmemory_backend=3
+docker service scale newtab_backend=3
 
 # View services
-docker stack services localwebmemory
+docker stack services newtab
 ```
 
 ### Kubernetes Deployment
@@ -481,10 +481,10 @@ kubectl apply -f .
 
 ```bash
 # Backup data volumes
-docker run --rm -v localwebmemory_backend_data:/data -v $(pwd):/backup alpine tar czf /backup/backup.tar.gz -C /data .
+docker run --rm -v newtab_backend_data:/data -v $(pwd):/backup alpine tar czf /backup/backup.tar.gz -C /data .
 
 # Restore data volumes
-docker run --rm -v localwebmemory_backend_data:/data -v $(pwd):/backup alpine tar xzf /backup/backup.tar.gz -C /data
+docker run --rm -v newtab_backend_data:/data -v $(pwd):/backup alpine tar xzf /backup/backup.tar.gz -C /data
 ```
 
 ### CI/CD Integration

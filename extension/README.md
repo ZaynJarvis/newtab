@@ -1,4 +1,4 @@
-# Local Web Memory Chrome Extension
+# New Tab Chrome Extension
 
 A privacy-first Chrome extension that automatically indexes visited web pages locally with AI-powered keywords and provides instant semantic search from your new tab.
 

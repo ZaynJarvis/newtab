@@ -1,4 +1,4 @@
-"""Structured logging configuration for Local Web Memory Backend."""
+"""Structured logging configuration for New Tab Backend."""
 
 import logging
 import logging.config
