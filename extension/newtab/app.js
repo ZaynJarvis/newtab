@@ -511,9 +511,6 @@ function displayResults(results) {
 
 // Delete a result
 async function deleteResult(id) {
-  if (!confirm('Are you sure you want to delete this entry?')) {
-    return;
-  }
   
   try {
     const response = await fetch(`${BACKEND_URL}/pages/${id}`, {
