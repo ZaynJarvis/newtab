@@ -263,16 +263,16 @@ jobs:
         echo "ARK_API_TOKEN=test-token-for-docker" > .env
         
         # Build and run tests in Docker
-        docker-compose -f docker-compose.dev.yml --profile testing build test-runner
-        docker-compose -f docker-compose.dev.yml --profile testing run --rm test-runner
+        docker compose -f docker-compose.dev.yml --profile testing build test-runner
+        docker compose -f docker-compose.dev.yml --profile testing run --rm test-runner
     
     - name: Test Docker health check
       run: |
         # Start the service
-        docker-compose up -d backend
+        docker compose up -d backend
         
         # Wait for health check
-        timeout 60 bash -c 'until docker-compose ps | grep -q "healthy"; do sleep 2; done'
+        timeout 60 bash -c 'until docker compose ps | grep -q "healthy"; do sleep 2; done'
         
         # Test API endpoints
         sleep 5
@@ -280,7 +280,7 @@ jobs:
         curl -f http://localhost:8000/docs
         
         # Cleanup
-        docker-compose down
+        docker compose down
 
   # Job 6: Security Scanning
   security:

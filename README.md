@@ -9,66 +9,21 @@
 
 A privacy-first Chrome extension that **automatically indexes** your browsing history locally and provides **instant AI-powered search** from your new tab. Never lose track of that important article or documentation again.
 
-## 🚀 Quick Start with Docker
-
-**Get started in under 60 seconds:**
-
-### Prerequisites
-- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
-- Git
-
-### 1. Clone and Setup
-```bash
-git clone https://github.com/ZaynJarvis/newtab
-cd newtab
-
-# Copy environment template (optional - works without API token)
-cp .env.example .env
-```
-
-### 2. Start the Server
-```bash
-# Start with Docker Compose (works immediately with mock data)
-docker-compose up -d
-
-# Check if it's running
-curl http://localhost:8000/health
-```
-
-### 3. Test Your Setup
-```bash
-# Add some test data
-curl -X POST "http://localhost:8000/index" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://docs.python.org/3/tutorial/",
-    "title": "Python Tutorial",
-    "content": "An introduction to Python programming language"
-  }'
-
-# Search your indexed content
-curl "http://localhost:8000/search?q=python+tutorial"
-```
-
-**🎯 Ready!** → Visit [localhost:8000/docs](http://localhost:8000/docs) for full API documentation
-
-> **📋 For detailed Docker setup options, see [DOCKER_GUIDE.md](DOCKER_GUIDE.md)**
-
-## 🛠️ Alternative Setup (Development)
-
-If you prefer to run without Docker:
+## 🚀 Quick Start
 
 ```bash
-# Backend setup
-cd backend
-uv sync
+# 1. Clone
+git clone https://github.com/ZaynJarvis/newtab && cd newtab
 
-# Start server (optional: set ARK_API_TOKEN for real LLM features)
-uv run uvicorn src.main:app --reload
+# 2. Get ARK API Token from bytedance ARK，then set it in env (or docker-compose.yml) file
 
-# Test with sample data
-uv run python ../demo/test-data-generator.py
+# 3. Start backend
+docker compose -f docker-compose.yml up -d
+
+# 4. Load extension: chrome://extensions/ → Developer mode → Load unpacked → 'extension' folder
 ```
+
+**📖 Full installation guide:** [INSTALL.md](INSTALL.md)
 
 ## 🧪 Testing
 
@@ -76,7 +31,7 @@ uv run python ../demo/test-data-generator.py
 
 ```bash
 # Test with Docker (recommended)
-docker-compose exec backend python -m pytest tests/test_simple_backend.py -v
+docker compose exec backend python -m pytest tests/test_simple_backend.py -v
 
 # Or run full test suite
 python run_tests.py all
@@ -298,17 +253,17 @@ newtab/
 ## 🛠️ Development
 
 ### Prerequisites
-- **Docker & Docker Compose** (recommended)
+- **Docker** or **Colima** (see [INSTALL.md](INSTALL.md))
+- **Chrome** browser
 - **Python 3.11+** and **uv** (for local development)
-- **Chrome** browser (for extension)
 
 ### Docker Development Setup
 ```bash
 # Development with live reload
-docker-compose -f docker-compose.dev.yml up --build
+docker compose -f docker-compose.dev.yml up --build
 
 # View logs
-docker-compose -f docker-compose.dev.yml logs -f backend-dev
+docker compose -f docker-compose.dev.yml logs -f backend-dev
 ```
 
 ### Local Development Setup
@@ -361,7 +316,7 @@ cp ./data/backend/web_memory.db ./backup_$(date +%Y%m%d).db
 
 # Restore from backup
 cp ./backup_20240315.db ./data/backend/web_memory.db
-docker-compose restart backend
+docker compose restart backend
 ```
 
 ### Performance Monitoring
@@ -378,9 +333,9 @@ curl http://localhost:8000/stats
 
 ```bash
 # Reset all data (Docker)
-docker-compose down
+docker compose down
 rm -rf ./data/backend/*
-docker-compose up -d
+docker compose up -d
 
 # Reset all data (Local)
 rm ./backend/web_memory.db ./backend/query_embeddings_cache.json

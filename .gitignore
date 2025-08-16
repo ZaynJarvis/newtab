@@ -13,8 +13,10 @@ backend/query_embeddings_cache.tmp
 backend/.env
 
 # Data directories
-data/
-logs/
+data/backend/*
+!data/backend/.gitkeep
+data/logs/*
+!data/logs/.gitkeep
 
 # Docker volumes
 docker-volumes/
