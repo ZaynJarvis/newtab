@@ -9,34 +9,91 @@
 
 A privacy-first Chrome extension that **automatically indexes** your browsing history locally and provides **instant AI-powered search** from your new tab. Never lose track of that important article or documentation again.
 
-## ⚡ Quick Start
+## 🚀 Quick Start with Docker
+
+**Get started in under 60 seconds:**
+
+### Prerequisites
+- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/)
+- Git
+
+### 1. Clone and Setup
+```bash
+git clone https://github.com/ZaynJarvis/newtab
+cd newtab
+
+# Copy environment template (optional - works without API token)
+cp .env.example .env
+```
+
+### 2. Start the Server
+```bash
+# Start with Docker Compose (works immediately with mock data)
+docker-compose up -d
+
+# Check if it's running
+curl http://localhost:8000/health
+```
+
+### 3. Test Your Setup
+```bash
+# Add some test data
+curl -X POST "http://localhost:8000/index" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://docs.python.org/3/tutorial/",
+    "title": "Python Tutorial",
+    "content": "An introduction to Python programming language"
+  }'
+
+# Search your indexed content
+curl "http://localhost:8000/search?q=python+tutorial"
+```
+
+**🎯 Ready!** → Visit [localhost:8000/docs](http://localhost:8000/docs) for full API documentation
+
+> **📋 For detailed Docker setup options, see [DOCKER_GUIDE.md](DOCKER_GUIDE.md)**
+
+## 🛠️ Alternative Setup (Development)
+
+If you prefer to run without Docker:
 
 ```bash
-# Clone and setup backend
-git clone https://github.com/ZaynJarvis/newtab
-cd newtab/backend
+# Backend setup
+cd backend
 uv sync
 
-# Start the server
-export ARK_API_TOKEN="your-api-token"  # Optional - works with mocks
-uv run uvicorn main:app --reload
+# Start server (optional: set ARK_API_TOKEN for real LLM features)
+uv run uvicorn src.main:app --reload
 
 # Test with sample data
 uv run python ../demo/test-data-generator.py
 ```
 
-**🎯 Ready in 30 seconds** → Visit [localhost:8000/docs](http://localhost:8000/docs) for API playground
-
 ## 🧪 Testing
 
-### Quick Test
+### Quick Test (Docker)
 
 ```bash
-# Run simple backend tests (fastest)
-python run_tests.py simple
+# Test with Docker (recommended)
+docker-compose exec backend python -m pytest tests/test_simple_backend.py -v
 
-# Run all tests
+# Or run full test suite
 python run_tests.py all
+```
+
+### Manual Testing
+
+```bash
+# Test health endpoint
+curl http://localhost:8000/health
+
+# Add test content and search
+curl -X POST "http://localhost:8000/index" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com", "title": "Test", "content": "Test content"}'
+
+curl "http://localhost:8000/search?q=test"
 ```
 
 **📖 Full testing guide:** [E2E_TESTING_GUIDE.md](E2E_TESTING_GUIDE.md)
@@ -241,16 +298,25 @@ newtab/
 ## 🛠️ Development
 
 ### Prerequisites
-- **Python 3.11+**
-- **uv** package manager
+- **Docker & Docker Compose** (recommended)
+- **Python 3.11+** and **uv** (for local development)
 - **Chrome** browser (for extension)
 
-### Setup
+### Docker Development Setup
+```bash
+# Development with live reload
+docker-compose -f docker-compose.dev.yml up --build
+
+# View logs
+docker-compose -f docker-compose.dev.yml logs -f backend-dev
+```
+
+### Local Development Setup
 ```bash
 # Backend development
 cd backend
 uv sync
-uv run python main.py
+uv run uvicorn src.main:app --reload
 
 # Extension development
 cd extension
@@ -263,6 +329,61 @@ cd extension
 export ARK_API_TOKEN="your-api-token-here"
 
 # Without API token, system uses mock data for development
+```
+
+## 💾 Data Management & Performance
+
+### Memory Usage
+
+**Optimized for efficiency** - New Tab is designed to be lightweight:
+
+| Component | Memory Usage | Notes |
+|-----------|--------------|-------|
+| **Docker Container** | ~122MB | FastAPI + Python runtime |
+| **Vector Store** | 0.5MB per 1000 pages | In-memory embeddings (auto-evicts at 10k limit) |
+| **Database** | ~60KB per page | SQLite with full-text search |
+| **Total (1000 pages)** | ~125MB | Excellent efficiency |
+
+**Scaling estimates:**
+- **10 pages**: ~122MB
+- **1,000 pages**: ~125MB  
+- **10,000 pages**: ~130MB (with auto-eviction)
+
+### Backup Your Data
+
+Your indexed web pages and search history are stored locally in:
+- **Docker setup**: `./data/backend/web_memory.db`
+- **Local setup**: `./backend/web_memory.db`
+
+```bash
+# Backup your data
+cp ./data/backend/web_memory.db ./backup_$(date +%Y%m%d).db
+
+# Restore from backup
+cp ./backup_20240315.db ./data/backend/web_memory.db
+docker-compose restart backend
+```
+
+### Performance Monitoring
+
+```bash
+# Check memory usage and stats
+curl http://localhost:8000/metrics
+
+# View detailed statistics
+curl http://localhost:8000/stats
+```
+
+### Fresh Start
+
+```bash
+# Reset all data (Docker)
+docker-compose down
+rm -rf ./data/backend/*
+docker-compose up -d
+
+# Reset all data (Local)
+rm ./backend/web_memory.db ./backend/query_embeddings_cache.json
 ```
 
 ## 📈 Roadmap
