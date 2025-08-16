@@ -377,6 +377,10 @@ body {
 }
 
 /* Toggle Setting */
+.setting-item {
+  margin-bottom: 12px;
+}
+
 .toggle-setting {
   display: flex;
   justify-content: space-between;

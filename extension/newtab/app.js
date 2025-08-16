@@ -771,15 +771,8 @@ async function loadDetailedStatistics() {
 }
 
 async function checkBackendStatus() {
-  try {
-    const response = await fetch(`${BACKEND_URL}/health`);
-    const status = response.ok ? 'Online' : 'Offline';
-    document.getElementById('backendStatus').textContent = status;
-    document.getElementById('backendStatus').style.color = response.ok ? '#10b981' : '#ef4444';
-  } catch (error) {
-    document.getElementById('backendStatus').textContent = 'Offline';
-    document.getElementById('backendStatus').style.color = '#ef4444';
-  }
+  // Backend status removed from main page display
+  // Can be re-enabled in settings if needed for debugging
 }
 
 // Utility Functions
