@@ -6,8 +6,28 @@ from datetime import datetime, timedelta
 from typing import List, Optional, Tuple, Dict, Any
 from pathlib import Path
 
-from models import PageCreate, PageResponse
-from arc.eviction import ARCEvictionPolicy, EvictionPolicy
+from src.core.models import PageCreate, PageResponse
+
+try:
+    from arc.eviction import ARCEvictionPolicy, EvictionPolicy
+except ImportError:
+    # Fallback implementations if arc module not available
+    from abc import ABC, abstractmethod
+    from typing import List, Dict
+    
+    class EvictionPolicy(ABC):
+        @abstractmethod
+        def get_eviction_candidates(self, pages: List[Dict], count: int) -> List[int]:
+            pass
+    
+    class ARCEvictionPolicy(EvictionPolicy):
+        def __init__(self, max_age_days: int = 90, min_visit_threshold: int = 1):
+            self.max_age_days = max_age_days
+            self.min_visit_threshold = min_visit_threshold
+        
+        def get_eviction_candidates(self, pages: List[Dict], count: int) -> List[int]:
+            # Simple LRU fallback
+            return [page['id'] for page in sorted(pages, key=lambda x: x.get('last_accessed', ''))[:count]]
 
 
 class Database:

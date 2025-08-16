@@ -4,3 +4,10 @@ backend/web_memory.db
 
 # Cache files
 backend/query_embeddings_cache.json
+
+# Data directories
+data/
+logs/
+
+# Docker volumes
+docker-volumes/

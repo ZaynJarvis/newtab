@@ -1,0 +1,115 @@
+# Docker Compose for Development Environment
+# Optimized for development with live reloading and debugging
+
+version: '3.8'
+
+services:
+  # Backend Development Service
+  backend-dev:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: builder  # Use builder stage for development dependencies
+    container_name: localwebmemory-backend-dev
+    ports:
+      - "8000:8000"
+      - "5678:5678"  # For debugpy if needed
+    environment:
+      # Development Configuration
+      - HOST=0.0.0.0
+      - PORT=8000
+      - LOG_LEVEL=debug
+      - RELOAD=true
+      
+      # Database Configuration
+      - DATABASE_FILE=/app/data/web_memory_dev.db
+      - QUERY_CACHE_FILE=/app/data/query_embeddings_cache_dev.json
+      
+      # API Configuration
+      - ARK_API_TOKEN=${ARK_API_TOKEN:-test-token-for-development}
+      
+      # Development settings
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # Live code reloading
+      - ./backend/src:/app/src
+      - ./backend/tests:/app/tests
+      - ./backend/scripts:/app/scripts
+      
+      # Persistent development data
+      - ./data/dev:/app/data
+      - ./logs/dev:/app/logs
+    networks:
+      - localwebmemory_dev_network
+    command: ["./start.sh", "dev"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # Test Runner Service
+  test-runner:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: builder
+    container_name: localwebmemory-test-runner
+    environment:
+      - ARK_API_TOKEN=test-token-for-testing
+      - DATABASE_FILE=":memory:"
+      - QUERY_CACHE_FILE=/tmp/test_query_cache.json
+      - LOG_LEVEL=error
+      - PYTHONPATH=/app
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/tests:/app/tests
+      - ./backend/scripts:/app/scripts
+      - test_reports:/app/reports
+    networks:
+      - localwebmemory_dev_network
+    command: ["./start.sh", "test"]
+    profiles:
+      - testing
+
+  # Chrome Extension Development Server
+  extension-server:
+    image: nginx:alpine
+    container_name: localwebmemory-extension-dev
+    ports:
+      - "3000:80"
+    volumes:
+      - ./extension:/usr/share/nginx/html:ro
+      - ./nginx/dev.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - localwebmemory_dev_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Documentation Server (for API docs)
+  docs-server:
+    image: nginx:alpine
+    container_name: localwebmemory-docs-dev
+    ports:
+      - "8080:80"
+    volumes:
+      - ./docs:/usr/share/nginx/html:ro
+    networks:
+      - localwebmemory_dev_network
+    profiles:
+      - docs
+
+# Development Network
+networks:
+  localwebmemory_dev_network:
+    driver: bridge
+
+# Development Volumes
+volumes:
+  test_reports:
+    driver: local

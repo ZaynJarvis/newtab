@@ -3,39 +3,62 @@
 import os
 import asyncio
 import json
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, TYPE_CHECKING
 import httpx
 import time
 from datetime import datetime
-from query_embedding_cache import QueryEmbeddingCache
+from src.cache.query_embedding_cache import QueryEmbeddingCache
+
+if TYPE_CHECKING:
+    from src.core.config import Settings
 
 
 class ArkAPIClient:
     """Client for ByteDance Ark API services."""
     
-    def __init__(self, api_key: Optional[str] = None):
+    def __init__(self, config: Optional["Settings"] = None, api_key: Optional[str] = None):
         """Initialize the API client."""
-        self.api_key = api_key or os.getenv("ARK_API_KEY")
-        if not self.api_key:
-            raise ValueError("ARK_API_KEY environment variable is required")
-        
-        self.llm_endpoint = "https://ark-cn-beijing.bytedance.net/api/v3/chat/completions"
-        self.embedding_endpoint = "https://ark-cn-beijing.bytedance.net/api/v3/embeddings/multimodal"
-        self.llm_model = "ep-20250529215531-dfpgt"
-        self.embedding_model = "ep-20250529220411-grkkv"
-        
-        # Rate limiting and retry configuration
-        self.max_retries = 3
-        self.retry_delay = 1.0  # seconds
-        self.request_timeout = 30.0  # seconds
-        self.health_check_timeout = 5.0  # shorter timeout for health checks
-        
-        # Initialize query embedding cache
-        self.query_cache = QueryEmbeddingCache(
-            capacity=1000,
-            cache_file="query_embeddings_cache.json",
-            ttl_days=7
-        )
+        if config:
+            # Use new configuration system
+            self.api_key = config.ark_api_token
+            self.llm_endpoint = config.llm_endpoint
+            self.embedding_endpoint = config.embedding_endpoint
+            self.llm_model = config.llm_model
+            self.embedding_model = config.embedding_model
+            self.max_retries = config.max_retries
+            self.retry_delay = config.retry_delay
+            self.request_timeout = config.request_timeout
+            self.health_check_timeout = config.health_check_timeout
+            
+            # Initialize query embedding cache with config
+            self.query_cache = QueryEmbeddingCache(
+                capacity=config.query_cache_capacity,
+                cache_file=config.query_cache_file,
+                ttl_days=config.query_cache_ttl_days
+            )
+        else:
+            # Fallback to old system for backward compatibility
+            self.api_key = api_key or os.getenv("ARK_API_TOKEN")
+            if not self.api_key:
+                raise ValueError("ARK_API_TOKEN environment variable is required")
+            
+            self.llm_endpoint = "https://ark-cn-beijing.bytedance.net/api/v3/chat/completions"
+            self.embedding_endpoint = "https://ark-cn-beijing.bytedance.net/api/v3/embeddings/multimodal"
+            self.llm_model = "ep-20250529215531-dfpgt"
+            self.embedding_model = "ep-20250529220411-grkkv"
+            
+            # Rate limiting and retry configuration
+            self.max_retries = 3
+            self.retry_delay = 1.0  # seconds
+            self.request_timeout = 30.0  # seconds
+            self.health_check_timeout = 5.0  # shorter timeout for health checks
+            
+            # Initialize query embedding cache
+            self.query_cache = QueryEmbeddingCache(
+                capacity=1000,
+                cache_file="query_embeddings_cache.json",
+                ttl_days=7
+            )
     
     def _get_headers(self) -> Dict[str, str]:
         """Get common headers for API requests."""

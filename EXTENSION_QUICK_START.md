@@ -5,7 +5,12 @@
 ### Step 1: Start Backend (30 seconds)
 ```bash
 cd /Users/bytedance/code/newtab/backend
-export ARK_API_KEY="16997291-4771-4dc9-9a42-4acc930897fa"
+
+# Copy and configure environment
+cp .env.example .env
+# Edit .env and set ARK_API_TOKEN=your-actual-token
+
+# Start server (reads config from .env)
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 ✅ Backend ready when you see: `Uvicorn running on http://0.0.0.0:8000`

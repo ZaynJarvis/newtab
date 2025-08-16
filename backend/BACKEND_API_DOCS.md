@@ -272,16 +272,26 @@ Relevance Score = (Vector Similarity × 0.7) + (Keyword Ranking × 0.3)
 ### Prerequisites
 ```bash
 cd /Users/bytedance/code/newtab/backend
+
+# Install dependencies with uv (recommended)
+uv sync
+
+# Or with pip
 pip install -r requirements.txt
 ```
 
-### Environment Variable
+### Configuration
 ```bash
-export ARK_API_KEY="16997291-4771-4dc9-9a42-4acc930897fa"
+# Copy environment template
+cp .env.example .env
+
+# Edit .env file and set your ARK_API_TOKEN
+# ARK_API_TOKEN=your-actual-token-here
 ```
 
 ### Start Server
 ```bash
+# Simple command - reads configuration from .env
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 

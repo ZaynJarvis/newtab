@@ -2,7 +2,7 @@
 
 import numpy as np
 from typing import List, Tuple, Dict, Optional
-from models import PageResponse
+from src.core.models import PageResponse
 from sklearn.cluster import KMeans
 from collections import defaultdict
 

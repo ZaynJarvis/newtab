@@ -38,7 +38,7 @@ jobs:
         uv run python main.py &
         sleep 5
       env:
-        ARK_API_KEY: mock-key-for-testing
+        ARK_API_TOKEN: mock-token-for-testing
     
     - name: Run health check
       run: |

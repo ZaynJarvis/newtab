@@ -1,205 +1,647 @@
-# Local Web Memory Extension - Testing Guide
+# Testing Guide for Local Web Memory Backend
 
-## Overview
-This guide documents how to test the Local Web Memory Chrome extension locally without publishing it to the Chrome Web Store.
+This guide provides comprehensive instructions for running and understanding the test suite for the Local Web Memory Backend project.
 
-## Prerequisites
-1. Backend server running at `http://localhost:8000`
-2. Python 3.8+ installed
-3. Chrome browser
+## 📋 Table of Contents
 
-## Testing Methods
+- [Overview](#overview)
+- [Test Categories](#test-categories)
+- [Quick Start](#quick-start)
+- [Running Tests](#running-tests)
+- [Test Configuration](#test-configuration)
+- [Writing Tests](#writing-tests)
+- [Continuous Integration](#continuous-integration)
+- [Troubleshooting](#troubleshooting)
 
-### Method 1: Load Extension in Chrome Developer Mode
+## 🔍 Overview
 
-This is the standard way to test a Chrome extension locally:
+The Local Web Memory Backend includes a comprehensive test suite covering:
 
-1. **Open Chrome Extensions Page**
-   - Navigate to `chrome://extensions`
-   - Or click the puzzle icon → "Manage Extensions"
+- **Unit Tests**: Individual component testing
+- **Integration Tests**: API endpoint testing
+- **End-to-End Tests**: Full workflow testing with Playwright
+- **Performance Tests**: Benchmarking and load testing
+- **Docker Tests**: Container and deployment testing
 
-2. **Enable Developer Mode**
-   - Toggle the "Developer mode" switch in the top-right corner
+### Test Technology Stack
 
-3. **Load the Extension**
-   - Click "Load unpacked"
-   - Navigate to `/Users/bytedance/code/newtab/extension`
-   - Click "Select"
+- **pytest**: Primary testing framework
+- **httpx**: Async HTTP client for API testing
+- **Playwright**: Browser automation for E2E testing
+- **pytest-cov**: Code coverage reporting
+- **pytest-asyncio**: Async test support
+- **psutil**: System monitoring for performance tests
 
-4. **Test the Extension**
-   - Open a new tab - you should see the custom new tab page
-   - Browse any website and it will be automatically indexed
-   - Search for content using the new tab interface
+## 📂 Test Categories
 
-5. **Reload Changes**
-   - After making code changes, click the refresh icon on the extension card
-   - Or click "Update" button at the top of the extensions page
+### Unit Tests (`unit`)
 
-### Method 2: Standalone Test Page
+Test individual functions and classes in isolation:
 
-Use the test HTML page to test the backend API without loading the extension:
+- Database operations
+- Vector store functionality
+- API client methods
+- Utility functions
+- Configuration validation
 
-1. **Start the Test Server**
-   ```bash
-   cd /Users/bytedance/code/newtab/test
-   python3 test-server.py
-   ```
+**Location**: Throughout `tests/` directory
+**Markers**: `@pytest.mark.unit` or unmarked
 
-2. **Open Test Interface**
-   - Navigate to `http://localhost:8081/test/test-extension.html`
+### Integration Tests (`integration`)
 
-3. **Available Test Actions**
-   - **Health Check**: Verify backend is running
-   - **Get Statistics**: View indexed pages count
-   - **Index Test Page**: Add a sample page to the database
-   - **Test Keyword Search**: Search using full-text search
-   - **Test Vector Search**: Search using semantic similarity
-   - **List All Pages**: View all indexed pages
-   - **Run All Tests**: Execute all tests sequentially
+Test API endpoints and component interactions:
 
-### Method 3: Direct File Access
+- HTTP endpoint testing
+- Database integration
+- External API integration
+- CORS functionality
+- Error handling
 
-For quick testing without a server:
+**Location**: `tests/test_integration_api.py`
+**Markers**: `@pytest.mark.integration`
 
-1. **Open the Test Page Directly**
-   ```bash
-   open /Users/bytedance/code/newtab/test/test-extension.html
-   ```
-   
-2. **Note**: This method works for API testing but not for testing the full extension features
+### End-to-End Tests (`e2e`)
 
-### Method 4: Backend API Testing
+Test complete workflows using browser automation:
 
-Test the backend directly using the quick test script:
+- Full API workflows
+- Multi-step operations
+- Real browser interactions
+- Chrome extension compatibility
+
+**Location**: `tests/test_e2e_playwright.py`
+**Markers**: `@pytest.mark.e2e`
+
+### Performance Tests (`performance`)
+
+Benchmark and stress test the system:
+
+- Response time testing
+- Concurrent request handling
+- Memory usage monitoring
+- Throughput measurement
+- Scalability testing
+
+**Location**: `tests/test_performance.py`
+**Markers**: `@pytest.mark.performance`
+
+### Slow Tests (`slow`)
+
+Long-running tests for comprehensive coverage:
+
+- Large dataset testing
+- Extended duration tests
+- Memory leak detection
+- Stress testing
+
+**Markers**: `@pytest.mark.slow`
+
+## 🚀 Quick Start
+
+### Prerequisites
 
 ```bash
-cd /Users/bytedance/code/newtab/demo
-python3 quick-test.py
+# Ensure you're in the backend directory
+cd backend
+
+# Install dependencies using uv
+uv sync
+
+# Or using pip
+pip install -r requirements.txt
 ```
 
-## Troubleshooting
+### Run All Tests
 
-### E2E Testing Results (Latest)
-✅ **Verified Working Features:**
-- Backend health check and statistics
-- Page indexing functionality
-- Keyword search with results display
-- Test interface loads correctly on `http://localhost:8081/test/test-extension.html`
-- Backend correctly configured for port 8000
-- No 422 errors in current implementation
+```bash
+# Quick test run (excludes slow tests)
+./scripts/test_quick.sh
 
-⚠️ **Known Limitations:**
-- **Vector/Semantic Search**: Requires `ARK_API_TOKEN` environment variable
-- Without API key, vector search returns 503 Service Unavailable
-- Backend runs in "mock mode" when API key is not provided
+# Comprehensive test suite
+./scripts/run_all_tests.sh
 
-### 422 Error Fixed
-The 422 Unprocessable Entity error has been fixed by updating the query parameter from `q` to `query` in the service worker.
+# Docker-based testing
+./scripts/test_docker_setup.sh
+```
+
+### Run Specific Test Categories
+
+```bash
+# Unit tests only
+pytest tests/ -m "unit or not (e2e or performance or slow)"
+
+# Integration tests
+pytest tests/ -m "integration"
+
+# E2E tests
+pytest tests/ -m "e2e"
+
+# Performance tests
+pytest tests/ -m "performance"
+```
+
+## 🧪 Running Tests
+
+### Command Line Options
+
+#### Basic Test Execution
+
+```bash
+# Run all tests
+pytest tests/
+
+# Run with verbose output
+pytest tests/ -v
+
+# Run with coverage
+pytest tests/ --cov=src --cov-report=html
+
+# Run specific test file
+pytest tests/test_integration_api.py
+
+# Run specific test function
+pytest tests/test_integration_api.py::TestHealthAPI::test_health_endpoint_success
+```
+
+#### Using Markers
+
+```bash
+# Run only unit tests
+pytest tests/ -m "unit"
+
+# Run everything except slow tests
+pytest tests/ -m "not slow"
+
+# Run integration and unit tests
+pytest tests/ -m "integration or unit"
+
+# Run performance tests only
+pytest tests/ -m "performance"
+```
+
+#### Advanced Options
+
+```bash
+# Stop on first failure
+pytest tests/ -x
+
+# Run failed tests from last run
+pytest tests/ --lf
+
+# Run in parallel (install pytest-xdist)
+pytest tests/ -n auto
+
+# Generate JUnit XML report
+pytest tests/ --junit-xml=test-results.xml
+
+# Show local variables in tracebacks
+pytest tests/ -l
+```
+
+### Environment Configuration
+
+Set environment variables for testing:
+
+```bash
+# Required for tests
+export ARK_API_TOKEN="test-token-for-testing"
+export DATABASE_FILE=":memory:"
+export QUERY_CACHE_FILE="/tmp/test_query_cache.json"
+export LOG_LEVEL="error"
+
+# Run tests
+pytest tests/
+```
+
+### Docker Testing
+
+```bash
+# Build and run tests in Docker
+docker build -t localwebmemory-test ./backend
+docker run --rm localwebmemory-test ./start.sh test
+
+# Using docker-compose
+docker-compose -f docker-compose.dev.yml --profile testing up test-runner
+```
+
+## ⚙️ Test Configuration
+
+### pytest.ini Configuration
+
+The project includes a `pytest.ini` file with default settings:
+
+```ini
+[tool:pytest]
+testpaths = tests
+python_files = test_*.py
+python_classes = Test*
+python_functions = test_*
+
+markers =
+    unit: Unit tests
+    integration: Integration tests
+    e2e: End-to-end tests
+    performance: Performance benchmark tests
+    slow: Slow running tests
+
+addopts = 
+    --strict-markers
+    --strict-config
+    --verbose
+    --tb=short
+    --color=yes
+    --durations=10
+```
+
+### Test Fixtures
+
+Key fixtures available in `conftest.py`:
+
+- **`client`**: FastAPI test client
+- **`async_client`**: Async HTTP client
+- **`test_db`**: In-memory database instance
+- **`mock_ark_client`**: Mocked API client
+- **`sample_page_data`**: Test page data
+- **`sample_pages_data`**: Multiple test pages
+
+### Coverage Configuration
+
+Coverage settings in `pytest.ini`:
+
+```ini
+[coverage:run]
+source = src
+omit = 
+    */tests/*
+    */venv/*
+
+[coverage:report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+
+show_missing = true
+precision = 2
+```
+
+## ✍️ Writing Tests
+
+### Unit Test Example
+
+```python
+import pytest
+from src.core.database import Database
+
+@pytest.mark.unit
+def test_database_initialization():
+    """Test database initialization."""
+    db = Database(":memory:")
+    assert db is not None
+    assert db.connection is not None
+
+@pytest.mark.unit
+def test_page_insertion(test_db, sample_page_data):
+    """Test page insertion."""
+    page_id = test_db.insert_page(
+        url=sample_page_data["url"],
+        title=sample_page_data["title"],
+        content=sample_page_data["content"]
+    )
+    assert isinstance(page_id, int)
+    assert page_id > 0
+```
+
+### Integration Test Example
+
+```python
+import pytest
+
+@pytest.mark.integration
+def test_health_endpoint(client):
+    """Test health endpoint."""
+    response = client.get("/health")
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert "status" in data
+    assert data["status"] in ["healthy", "degraded"]
+
+@pytest.mark.integration
+async def test_async_search(async_client):
+    """Test async search endpoint."""
+    response = await async_client.get("/search?query=test")
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert "results" in data
+    assert isinstance(data["results"], list)
+```
+
+### E2E Test Example
+
+```python
+import pytest
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_page_indexing_workflow(test_server):
+    """Test complete page indexing workflow."""
+    async with httpx.AsyncClient() as client:
+        # Index a page
+        page_data = {
+            "url": "https://example.com/test",
+            "title": "Test Page",
+            "content": "Test content"
+        }
+        
+        response = await client.post(
+            f"{test_server.base_url}/index",
+            json=page_data
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            assert data["success"] is True
+            
+            # Search for the page
+            search_response = await client.get(
+                f"{test_server.base_url}/search?query=test"
+            )
+            assert search_response.status_code == 200
+```
+
+### Performance Test Example
+
+```python
+import pytest
+import time
+import statistics
+
+@pytest.mark.performance
+def test_search_performance(client):
+    """Test search endpoint performance."""
+    times = []
+    
+    for _ in range(10):
+        start = time.perf_counter()
+        response = client.get("/search?query=test")
+        end = time.perf_counter()
+        
+        assert response.status_code == 200
+        times.append(end - start)
+    
+    avg_time = statistics.mean(times)
+    assert avg_time < 1.0, f"Average response time {avg_time:.3f}s exceeds 1s"
+```
+
+### Test Utilities
+
+Common testing utilities:
+
+```python
+# Timing helper
+class PerformanceTimer:
+    def __enter__(self):
+        self.start = time.perf_counter()
+        return self
+    
+    def __exit__(self, *args):
+        self.duration = time.perf_counter() - self.start
+
+# Usage
+with PerformanceTimer() as timer:
+    response = client.get("/health")
+assert timer.duration < 0.1
+```
+
+## 🔄 Continuous Integration
+
+### GitHub Actions Integration
+
+The project includes comprehensive CI/CD in `.github/workflows/ci-cd.yml`:
+
+```yaml
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    
+    steps:
+    - name: Run unit tests
+      run: |
+        cd backend
+        uv run pytest tests/ -m 'unit' --cov=src --cov-report=xml
+    
+    - name: Run integration tests
+      run: |
+        cd backend
+        uv run pytest tests/ -m 'integration'
+```
+
+### Test Commands
+
+Automated test scripts:
+
+```bash
+# Quick development testing
+./scripts/test_quick.sh
+
+# Comprehensive testing with coverage
+./scripts/run_all_tests.sh --coverage-only
+
+# Performance testing only
+./scripts/run_all_tests.sh --skip-e2e --performance-only
+
+# Skip slow tests
+./scripts/run_all_tests.sh --quick
+```
+
+### Coverage Reports
+
+Generate and view coverage:
+
+```bash
+# Generate HTML coverage report
+pytest tests/ --cov=src --cov-report=html
+
+# Open coverage report
+open htmlcov/index.html
+
+# Generate XML for CI
+pytest tests/ --cov=src --cov-report=xml
+```
+
+## 🔧 Troubleshooting
 
 ### Common Issues
 
-1. **Backend Not Running**
-   - Error: "Backend connection failed"
-   - Solution: Start the backend server
-   ```bash
-   cd backend
-   source .venv/bin/activate
-   uvicorn main:app --reload --host 0.0.0.0 --port 8000
-   ```
+#### 1. Import Errors
+```bash
+# Ensure PYTHONPATH is set
+export PYTHONPATH=/Users/bytedance/code/newtab/backend
+pytest tests/
 
-2. **Extension Not Updating**
-   - Issue: Changes not reflected after code modification
-   - Solution: Click the refresh icon on the extension card in `chrome://extensions`
-
-3. **CORS Errors**
-   - Issue: Cross-origin requests blocked
-   - Solution: The backend already has CORS configured for `chrome-extension://*`
-
-4. **Port Already in Use**
-   - Error: "Address already in use"
-   - Solution: Stop other servers or change the port in test-server.py
-
-5. **Server Won't Start - Missing API Key**
-   - Issue: "ARK_API_KEY environment variable is required but not set"
-   - Solution: Set the environment variable before starting
-   ```bash
-   export ARK_API_KEY="$ARK_API_TOKEN"
-   ```
-   - Note: Server now requires API key and will exit immediately if not set
-
-6. **Vector Search Not Working**
-   - Issue: "503 Service Unavailable" for semantic search (if server somehow starts without key)
-   - Solution: Ensure `ARK_API_TOKEN` environment variable is properly set
-   - Check backend logs for API client initialization status
-
-## Test Workflow
-
-1. **Start Backend Server**
-   ```bash
-   cd backend
-   source .venv/bin/activate
-   # REQUIRED: Set API key (server will not start without it)
-   export ARK_API_KEY="$ARK_API_TOKEN"  # Required - server will exit if empty
-   uvicorn main:app --reload --host 0.0.0.0 --port 8000
-   ```
-
-2. **Start Test Server** (Optional)
-   ```bash
-   cd test
-   python3 test-server.py
-   ```
-
-3. **Load Extension in Chrome**
-   - Follow Method 1 above
-
-4. **Run Tests**
-   - Use the test interface to validate functionality
-   - Check console for detailed logs
-
-5. **Monitor Backend Logs**
-   - Watch the terminal running uvicorn for request logs
-   - Look for any errors or 422 responses
-
-## API Endpoints Reference
-
-- `GET /health` - Health check
-- `GET /stats` - System statistics
-- `POST /index` - Index a new page
-- `GET /search/keyword?query=...` - Keyword search
-- `GET /search/vector?query=...` - Semantic search
-- `GET /pages` - List all pages
-- `DELETE /pages/{id}` - Delete a specific page
-
-## Console Commands
-
-Open Chrome DevTools Console (F12) on the new tab page:
-
-```javascript
-// Check backend status
-fetch('http://localhost:8000/health').then(r => r.json()).then(console.log)
-
-// Perform search
-fetch('http://localhost:8000/search/keyword?query=python&limit=5')
-  .then(r => r.json()).then(console.log)
-
-// Get statistics
-fetch('http://localhost:8000/stats').then(r => r.json()).then(console.log)
+# Or use -m flag
+python -m pytest tests/
 ```
 
-## Development Tips
+#### 2. Database Connection Issues
+```bash
+# Clean up test databases
+rm -f test_*.db
+rm -f /tmp/test_query_cache.json
 
-1. **Use the Console**: The test interface logs all actions to the console for debugging
-2. **Check Network Tab**: Use Chrome DevTools Network tab to inspect API calls
-3. **Test Incrementally**: Test each feature separately before running all tests
-4. **Monitor Both Logs**: Keep both backend and frontend logs visible
+# Restart tests
+pytest tests/
+```
 
-## Success Indicators
+#### 3. Playwright Installation
+```bash
+# Install Playwright browsers
+playwright install chromium
 
-✅ Backend health check returns "healthy"
-✅ No 422 errors in the backend logs
-✅ Keyword search queries return results
-✅ Pages can be indexed and retrieved
-✅ Extension icon appears in Chrome toolbar
-✅ New tab page loads with search interface
-✅ Test interface accessible at `localhost:8081/test/test-extension.html`
-⚠️ Vector search requires `ARK_API_TOKEN` environment variable
+# Or using uv
+uv run playwright install chromium
+```
+
+#### 4. Permission Issues
+```bash
+# Fix permissions
+chmod +x scripts/*.sh
+
+# Run with proper permissions
+sudo ./scripts/run_all_tests.sh
+```
+
+### Debug Options
+
+```bash
+# Debug failing tests
+pytest tests/ --pdb
+
+# Capture output
+pytest tests/ -s
+
+# Show fixtures
+pytest tests/ --fixtures
+
+# Dry run (collect tests only)
+pytest tests/ --collect-only
+```
+
+### Performance Issues
+
+```bash
+# Run tests with timing
+pytest tests/ --durations=10
+
+# Profile memory usage
+pytest tests/ --profile
+
+# Run minimal test set
+pytest tests/ -m "unit and not slow"
+```
+
+### Test Data Cleanup
+
+```bash
+# Clean test artifacts
+rm -rf .pytest_cache/
+rm -f .coverage
+rm -rf htmlcov/
+rm -f test-results.xml
+rm -f /tmp/test_query_cache.json
+```
+
+## 📊 Test Metrics
+
+### Coverage Goals
+
+- **Overall**: > 80%
+- **Critical paths**: > 90%
+- **New code**: > 95%
+
+### Performance Benchmarks
+
+- **Health endpoint**: < 100ms
+- **Search endpoint**: < 1s
+- **Index endpoint**: < 5s
+- **Concurrent requests**: > 10 req/s
+
+### Test Execution Time
+
+- **Unit tests**: < 30s
+- **Integration tests**: < 2min
+- **E2E tests**: < 5min
+- **Performance tests**: < 3min
+- **Full suite**: < 10min
+
+## 📚 Best Practices
+
+### Test Organization
+
+1. **One concept per test**: Each test should verify one behavior
+2. **Descriptive names**: Test names should explain what they verify
+3. **Arrange-Act-Assert**: Structure tests clearly
+4. **Independent tests**: Tests should not depend on each other
+5. **Cleanup**: Always clean up test data
+
+### Mock Usage
+
+```python
+# Mock external dependencies
+@patch('src.api.indexing.ark_client')
+def test_indexing_with_mock(mock_client):
+    mock_client.generate_keywords.return_value = ["test", "keywords"]
+    # Test implementation
+```
+
+### Async Testing
+
+```python
+@pytest.mark.asyncio
+async def test_async_function():
+    """Test async functions properly."""
+    result = await some_async_function()
+    assert result is not None
+```
+
+## 🎯 Test Strategy
+
+### Test Pyramid
+
+1. **Unit Tests (70%)**: Fast, isolated, many
+2. **Integration Tests (20%)**: Medium speed, API level
+3. **E2E Tests (10%)**: Slow, full workflow, few
+
+### When to Write Tests
+
+- **Before implementing** (TDD): For complex logic
+- **During implementation**: For immediate feedback
+- **After implementing**: For legacy code coverage
+- **When fixing bugs**: Regression tests
+
+### What to Test
+
+**Always Test:**
+- Public API endpoints
+- Error conditions
+- Edge cases
+- Performance critical paths
+
+**Consider Testing:**
+- Private methods (if complex)
+- Configuration loading
+- Integration points
+
+**Don't Test:**
+- Framework code
+- Simple getters/setters
+- External libraries
+
+---
+
+This testing guide ensures comprehensive coverage and reliable quality assurance for the Local Web Memory Backend project.

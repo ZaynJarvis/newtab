@@ -21,13 +21,17 @@ from models import (
 from database import Database
 from vector_store import VectorStore
 from api_client import ArkAPIClient
+from src.core.config import settings
 
-# Check for required ARK_API_KEY environment variable
-ARK_API_KEY = os.getenv("ARK_API_KEY")
-if not ARK_API_KEY or ARK_API_KEY.strip() == "":
-    print("❌ ERROR: ARK_API_KEY environment variable is required but not set.")
-    print("Please set the ARK_API_KEY environment variable before starting the server.")
-    print("Example: export ARK_API_KEY=\"your-api-key-here\"")
+# Initialize configuration
+try:
+    config = settings
+    print(f"✅ Configuration loaded successfully")
+    print(f"🔑 API token configured: {config.ark_api_token[:8]}...")
+except Exception as e:
+    print(f"❌ ERROR: Failed to load configuration: {e}")
+    print("Please ensure ARK_API_TOKEN is set in environment or .env file")
+    print("Example: export ARK_API_TOKEN=\"your-api-token-here\"")
     sys.exit(1)
 
 # Initialize FastAPI app
@@ -94,14 +98,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize components
+# Initialize components using configuration
 db = Database()
-vector_store = VectorStore(dimension=2048)  # ByteDance embedding model dimension
+vector_store = VectorStore(dimension=config.vector_dimension)
 ark_client = None
 
-# Initialize Ark API client if API key is available
+# Initialize Ark API client using configuration
 try:
-    ark_client = ArkAPIClient()
+    ark_client = ArkAPIClient(config)
     print("✅ Ark API client initialized successfully")
 except Exception as e:
     print(f"⚠️  Ark API client initialization failed: {e}")
@@ -817,8 +821,8 @@ if __name__ == "__main__":
     
     uvicorn.run(
         "main:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True,
-        log_level="info"
+        host=config.host,
+        port=config.port,
+        reload=config.reload,
+        log_level=config.log_level
     )

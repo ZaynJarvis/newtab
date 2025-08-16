@@ -21,7 +21,7 @@ TASK SEQUENCE:
    - Replace mock vectors with real embeddings
 
 API CREDENTIALS:
-export ARK_API_KEY="16997291-4771-4dc9-9a42-4acc930897fa"
+export ARK_API_TOKEN="16997291-4771-4dc9-9a42-4acc930897fa"
 
 LLM endpoint: https://ark-cn-beijing.bytedance.net/api/v3/chat/completions
 Embedding endpoint: https://ark-cn-beijing.bytedance.net/api/v3/embeddings/multimodal

@@ -50,12 +50,12 @@ Build a privacy-first Chrome extension that automatically indexes visited web pa
 ### External APIs (ByteDance Ark)
 ```bash
 # API Token
-export ARK_API_KEY="16997291-4771-4dc9-9a42-4acc930897fa"
+export ARK_API_TOKEN="16997291-4771-4dc9-9a42-4acc930897fa"
 
 # LLM API for keywords/descriptions
 curl https://ark-cn-beijing.bytedance.net/api/v3/chat/completions \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $ARK_API_KEY" \
+  -H "Authorization: Bearer $ARK_API_TOKEN" \
   -d '{
     "model": "ep-20250529215531-dfpgt",
     "messages": [{"role": "user", "content": "Generate keywords for: [page content]"}]
@@ -64,7 +64,7 @@ curl https://ark-cn-beijing.bytedance.net/api/v3/chat/completions \
 # Embedding API for vectors
 curl https://ark-cn-beijing.bytedance.net/api/v3/embeddings/multimodal \
    -H "Content-Type: application/json" \
-   -H "Authorization: Bearer $ARK_API_KEY" \
+   -H "Authorization: Bearer $ARK_API_TOKEN" \
    -d '{
     "model": "ep-20250529220411-grkkv",
     "input": [{"type":"text", "text":"[page content]"}]

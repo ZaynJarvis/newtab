@@ -6,7 +6,7 @@ import tempfile
 import threading
 from pathlib import Path
 from unittest import TestCase
-from query_embedding_cache import QueryEmbeddingCache
+from src.cache.query_embedding_cache import QueryEmbeddingCache
 
 
 class TestQueryEmbeddingCache(TestCase):

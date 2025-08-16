@@ -18,7 +18,7 @@ cd newtab/backend
 uv sync
 
 # Start the server
-export ARK_API_KEY="your-api-key"  # Optional - works with mocks
+export ARK_API_TOKEN="your-api-token"  # Optional - works with mocks
 uv run uvicorn main:app --reload
 
 # Test with sample data
@@ -246,9 +246,9 @@ cd extension
 ### Environment Variables
 ```bash
 # Optional - ByteDance Ark API integration
-export ARK_API_KEY="your-api-key-here"
+export ARK_API_TOKEN="your-api-token-here"
 
-# Without API key, system uses mock data for development
+# Without API token, system uses mock data for development
 ```
 
 ## 📈 Roadmap
