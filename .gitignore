@@ -4,6 +4,13 @@ backend/web_memory.db
 
 # Cache files
 backend/query_embeddings_cache.json
+backend/query_embeddings_cache.tmp
+*.cache
+*.tmp
+
+# Environment files
+.env
+backend/.env
 
 # Data directories
 data/
