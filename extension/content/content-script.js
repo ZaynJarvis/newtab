@@ -97,10 +97,21 @@
     };
   }
 
+  // Track visit duration to avoid indexing pages with short visits
+  let pageStartTime = Date.now();
+  let isProcessingScheduled = false;
+
   // Main function to process the page
   function processPage() {
     if (!shouldIndexPage()) {
       console.log('Page skipped: not eligible for indexing');
+      return;
+    }
+    
+    // Check if user has been on page for at least 5 seconds
+    const visitDuration = Date.now() - pageStartTime;
+    if (visitDuration < 5000) {
+      console.log('Page skipped: visit duration too short');
       return;
     }
     
@@ -129,11 +140,29 @@
     });
   }
 
-  // Wait for page to fully load
+  // Wait for page to fully load and check if user is still on page
+  function schedulePageProcessing() {
+    if (isProcessingScheduled) {
+      return;
+    }
+    isProcessingScheduled = true;
+    
+    // Increased delay to 5 seconds to allow dynamic content to load
+    // and ensure user is actively reading the page
+    setTimeout(() => {
+      // Check if user is still on the same page
+      if (window.location.href === document.URL) {
+        processPage();
+      } else {
+        console.log('Page skipped: user navigated away');
+      }
+      isProcessingScheduled = false;
+    }, 5000);
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', processPage);
+    document.addEventListener('DOMContentLoaded', schedulePageProcessing);
   } else {
-    // Small delay to ensure dynamic content has loaded
-    setTimeout(processPage, 1000);
+    schedulePageProcessing();
   }
 })();

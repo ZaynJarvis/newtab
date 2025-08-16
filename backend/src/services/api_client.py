@@ -118,14 +118,14 @@ class ArkAPIClient:
     
     async def generate_keywords_and_description(self, title: str, content: str) -> Dict[str, str]:
         """
-        Generate keywords and description for a web page using LLM.
+        Generate keywords, description, and improved title for a web page using LLM.
         
         Args:
             title: Page title
             content: Page content (truncated for API limits)
         
         Returns:
-            Dict with 'keywords' and 'description' fields
+            Dict with 'keywords', 'description', and 'improved_title' fields
         """
         # Truncate content to avoid token limits
         max_content_length = 2000
@@ -135,14 +135,21 @@ class ArkAPIClient:
         prompt = f"""Analyze this web page and generate:
 1. Keywords: 5-10 relevant keywords/phrases separated by commas
 2. Description: A concise 1-2 sentence summary
+3. Title evaluation: Check if the title is generic (like "Docs", "Document", "Home", "Index", etc.) and suggest a better, more descriptive title based on the content if needed
 
 Title: {title}
 Content: {content}
 
+Evaluate the title quality:
+- If the title is generic, vague, or not descriptive (like "Docs", "Document", "Home", "Index", "Page", etc.), suggest a better title based on the actual content
+- If the title is already descriptive and specific, keep it as is
+- The improved title should be concise but informative, reflecting the main topic or purpose of the page
+
 Please respond in this exact JSON format:
 {{
     "keywords": "keyword1, keyword2, keyword3, ...",
-    "description": "Brief description of the page content"
+    "description": "Brief description of the page content",
+    "improved_title": "Better title if original is generic, or original title if already good"
 }}"""
         
         payload = {
@@ -154,7 +161,7 @@ Please respond in this exact JSON format:
                 }
             ],
             "temperature": 0.3,
-            "max_tokens": 300
+            "max_tokens": 400
         }
         
         try:
@@ -162,30 +169,32 @@ Please respond in this exact JSON format:
             
             # Extract content from response
             if "choices" in response and len(response["choices"]) > 0:
-                content = response["choices"][0]["message"]["content"]
+                response_content = response["choices"][0]["message"]["content"]
                 
                 # Try to parse JSON response
                 try:
                     # Clean up response (remove code block markers if present)
-                    content = content.strip()
-                    if content.startswith("```json"):
-                        content = content[7:]
-                    if content.endswith("```"):
-                        content = content[:-3]
-                    content = content.strip()
+                    response_content = response_content.strip()
+                    if response_content.startswith("```json"):
+                        response_content = response_content[7:]
+                    if response_content.endswith("```"):
+                        response_content = response_content[:-3]
+                    response_content = response_content.strip()
                     
-                    result = json.loads(content)
+                    result = json.loads(response_content)
                     
                     return {
                         "keywords": result.get("keywords", ""),
-                        "description": result.get("description", "")
+                        "description": result.get("description", ""),
+                        "improved_title": result.get("improved_title", title)
                     }
                 
                 except json.JSONDecodeError:
                     # Fallback: extract manually
-                    lines = content.split('\n')
+                    lines = response_content.split('\n')
                     keywords = ""
                     description = ""
+                    improved_title = title
                     
                     for line in lines:
                         line = line.strip()
@@ -193,23 +202,28 @@ Please respond in this exact JSON format:
                             keywords = line.split(":", 1)[1].strip().strip('"')
                         elif "description" in line.lower() and ":" in line:
                             description = line.split(":", 1)[1].strip().strip('"')
+                        elif "improved_title" in line.lower() and ":" in line:
+                            improved_title = line.split(":", 1)[1].strip().strip('"')
                     
                     return {
                         "keywords": keywords,
-                        "description": description
+                        "description": description,
+                        "improved_title": improved_title or title
                     }
             
             # Fallback response
             return {
                 "keywords": "web page, content",
-                "description": "Web page content"
+                "description": "Web page content",
+                "improved_title": title
             }
         
         except Exception as e:
             print(f"Error generating keywords/description: {str(e)}")
             return {
                 "keywords": "web page, content",
-                "description": f"Content from {title}"
+                "description": f"Content from {title}",
+                "improved_title": title
             }
     
     async def generate_embedding(self, text: str) -> List[float]:

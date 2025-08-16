@@ -29,22 +29,25 @@ async def process_page_ai(page_id: int, page: PageCreate):
         return
     
     try:
-        # Generate keywords and description
+        # Generate keywords, description, and improved title
         ai_data = await ark_client.generate_keywords_and_description(page.title, page.content)
         
-        # Generate vector embedding
-        embedding_text = f"{page.title} {ai_data['description']} {page.content[:1000]}"
+        # Use improved title if available, fallback to original title
+        final_title = ai_data.get('improved_title', page.title)
+        
+        # Generate vector embedding using the final title
+        embedding_text = f"{final_title} {ai_data['description']} {page.content[:1000]}"
         vector_embedding = await ark_client.generate_embedding(embedding_text)
         
-        # Update database with AI-generated data
+        # Update database with AI-generated data including improved title
         import json
         vector_json = json.dumps(vector_embedding) if vector_embedding else None
         with db.get_connection() as conn:
             conn.execute("""
                 UPDATE pages 
-                SET description = ?, keywords = ?, vector_embedding = ?
+                SET title = ?, description = ?, keywords = ?, vector_embedding = ?
                 WHERE id = ?
-            """, (ai_data['description'], ai_data['keywords'], 
+            """, (final_title, ai_data['description'], ai_data['keywords'], 
                   vector_json, page_id))
             conn.commit()
         
