@@ -20,6 +20,11 @@ services:
     volumes:
       - ./data/backend:/app/data
       - ./logs/backend:/app/logs
+    logging:
+      driver: "local"
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
