@@ -4,20 +4,59 @@ This guide explains how to set up and use the observability stack for the New Ta
 
 ## Quick Start
 
-### 1. Start Main Application
+### Option 1: Use Setup Script (Recommended)
 ```bash
+# Setup and start monitoring stack
+./scripts/setup-monitoring.sh
+
+# Start main application
 docker-compose up -d
 ```
 
-### 2. Start Monitoring Stack
+### Option 2: Manual Setup
 ```bash
+# Create shared network
+docker network create newtab-monitoring
+
+# Start monitoring stack
 docker-compose -f docker-compose.observe.yml up -d
+
+# Start main application
+docker-compose up -d
 ```
 
 ### 3. Access Dashboards
 - **Grafana**: http://localhost:3000 (admin/admin123)
 - **Prometheus**: http://localhost:9090
 - **cAdvisor**: http://localhost:8080
+
+## Network Architecture
+
+The monitoring setup uses a **shared Docker network** (`newtab-monitoring`) to enable communication between the main application and monitoring services:
+
+```
+┌─────────────────┐    ┌─────────────────┐
+│  Main App       │    │  Monitoring     │
+│  (docker-       │    │  (docker-       │
+│   compose.yml)  │    │   compose.      │
+│                 │    │   observe.yml)  │
+│ ┌─────────────┐ │    │ ┌─────────────┐ │
+│ │newtab-      │ │    │ │prometheus   │ │
+│ │backend      │◄┼────┼►│grafana      │ │
+│ │             │ │    │ │cadvisor     │ │
+│ └─────────────┘ │    │ │loki         │ │
+└─────────────────┘    │ └─────────────┘ │
+                       └─────────────────┘
+         │                       │
+         └───────────────────────┘
+           newtab-monitoring network
+```
+
+This architecture allows:
+- **Prometheus** to scrape metrics from `newtab-backend:8000`
+- **Promtail** to collect logs from backend container
+- **cAdvisor** to monitor all containers including the backend
+- **Independent operation** - either stack can run without the other
 
 ## Architecture Overview
 
@@ -145,10 +184,33 @@ docker run --rm -v newtab-prometheus-data:/source -v $(pwd):/backup alpine tar c
 **No metrics in Prometheus**
 - Check if cAdvisor is running: `docker-compose -f docker-compose.observe.yml ps`
 - Verify targets in Prometheus UI: http://localhost:9090/targets
+- Ensure network exists: `docker network ls | grep newtab-monitoring`
+- Check backend is on monitoring network: `docker inspect newtab-backend | grep newtab-monitoring`
+
+**Backend metrics not accessible**
+- Verify network connectivity: `docker exec newtab-prometheus ping newtab-backend`
+- Check if backend exposes metrics endpoint: `curl http://localhost:8000/metrics`
+- Ensure both services are on the monitoring network
 
 **Missing logs in Loki**
 - Check Promtail configuration: `config/promtail/config.yml`
 - Verify log directory permissions: `ls -la logs/`
+- Check Docker socket access: `docker exec newtab-promtail ls -la /var/run/docker.sock`
+
+**Network connection issues**
+```bash
+# Check if monitoring network exists
+docker network ls | grep newtab-monitoring
+
+# Create network if missing
+docker network create newtab-monitoring
+
+# Check which containers are connected
+docker network inspect newtab-monitoring
+
+# Reconnect backend to monitoring network
+docker network connect newtab-monitoring newtab-backend
+```
 
 ### Resource Usage
 Monitor resource consumption:

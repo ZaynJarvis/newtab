@@ -33,7 +33,7 @@ scrape_configs:
   # New Tab backend application metrics (if available)
   - job_name: 'newtab-backend'
     static_configs:
-      - targets: ['host.docker.internal:8000']
+      - targets: ['newtab-backend:8000']
     metrics_path: '/metrics'
     scrape_interval: 30s
     scrape_timeout: 10s

@@ -25,9 +25,17 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+    networks:
+      - default
+      - newtab-monitoring
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+
+networks:
+  newtab-monitoring:
+    external: true
+    name: newtab-monitoring

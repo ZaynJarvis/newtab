@@ -19,19 +19,21 @@ scrape_configs:
           service: backend
           __path__: /var/log/newtab/backend/*.log
 
-  # Scrape Docker container logs
+  # Scrape Docker container logs via service discovery
   - job_name: docker
     docker_sd_configs:
       - host: unix:///var/run/docker.sock
         refresh_interval: 5s
         filters:
-          - name: label
-            values: ["logging=promtail"]
+          - name: name
+            values: ["newtab-backend", "newtab-.*"]
     relabel_configs:
       - source_labels: ['__meta_docker_container_name']
         regex: '/(.*)' 
         target_label: 'container_name'
       - source_labels: ['__meta_docker_container_log_stream']
         target_label: 'logstream'
-      - source_labels: ['__meta_docker_container_label_logging_jobname']
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(newtab-.*)'
         target_label: 'job'
+        replacement: '${1}'
