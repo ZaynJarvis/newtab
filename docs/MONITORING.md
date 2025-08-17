@@ -10,7 +10,7 @@ This guide explains how to set up and use the observability stack for the New Ta
 ./scripts/setup-monitoring.sh
 
 # Start main application
-docker-compose up -d
+docker compose up -d
 ```
 
 ### Option 2: Manual Setup
@@ -19,10 +19,10 @@ docker-compose up -d
 docker network create newtab-monitoring
 
 # Start monitoring stack
-docker-compose -f docker-compose.observe.yml up -d
+docker compose -f docker-compose.observe.yml up -d
 
 # Start main application
-docker-compose up -d
+docker compose up -d
 ```
 
 ### 3. Access Dashboards
@@ -150,13 +150,13 @@ Prometheus automatically discovers:
 ### Starting/Stopping Services
 ```bash
 # Start monitoring stack
-docker-compose -f docker-compose.observe.yml up -d
+docker compose -f docker-compose.observe.yml up -d
 
 # Stop monitoring stack
-docker-compose -f docker-compose.observe.yml down
+docker compose -f docker-compose.observe.yml down
 
 # View logs
-docker-compose -f docker-compose.observe.yml logs -f
+docker compose -f docker-compose.observe.yml logs -f
 ```
 
 ### Data Management
@@ -179,10 +179,10 @@ docker run --rm -v newtab-prometheus-data:/source -v $(pwd):/backup alpine tar c
 
 **Grafana login fails**
 - Check GRAFANA_ADMIN_PASSWORD in .env
-- Reset password: `docker-compose -f docker-compose.observe.yml exec grafana grafana-cli admin reset-admin-password newpassword`
+- Reset password: `docker compose -f docker-compose.observe.yml exec grafana grafana-cli admin reset-admin-password newpassword`
 
 **No metrics in Prometheus**
-- Check if cAdvisor is running: `docker-compose -f docker-compose.observe.yml ps`
+- Check if cAdvisor is running: `docker compose -f docker-compose.observe.yml ps`
 - Verify targets in Prometheus UI: http://localhost:9090/targets
 - Ensure network exists: `docker network ls | grep newtab-monitoring`
 - Check backend is on monitoring network: `docker inspect newtab-backend | grep newtab-monitoring`

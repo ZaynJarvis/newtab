@@ -16,7 +16,7 @@ fi
 
 # Start the monitoring stack
 echo "🚀 Starting monitoring services..."
-docker-compose -f docker-compose.observe.yml up -d
+docker compose -f docker-compose.observe.yml up -d
 
 # Wait for services to be ready
 echo "⏳ Waiting for services to start..."
@@ -55,7 +55,7 @@ echo "   • Prometheus: http://localhost:9090"
 echo "   • cAdvisor:   http://localhost:8080"
 echo ""
 echo "📝 Next steps:"
-echo "   1. Start your main application: docker-compose up -d"
+echo "   1. Start your main application: docker compose up -d"
 echo "   2. Check Prometheus targets: http://localhost:9090/targets"
 echo "   3. Import dashboards in Grafana"
 echo ""
