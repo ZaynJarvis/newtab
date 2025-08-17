@@ -21,8 +21,9 @@ class ArkAPIClient:
         self.logger = get_logger(__name__)
         """Initialize the API client."""
         if config:
-            # Use new configuration system
-            self.api_key = config.ark_api_token
+            # Use new configuration system (legacy compatibility)
+            # Note: This is deprecated, use MultiProviderAPIClient instead
+            self.api_key = getattr(config, 'ark_api_token', None) or config.llm_api_token
             self.llm_endpoint = config.llm_endpoint
             self.embedding_endpoint = config.embedding_endpoint
             self.llm_model = config.llm_model

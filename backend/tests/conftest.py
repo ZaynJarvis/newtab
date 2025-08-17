@@ -11,7 +11,9 @@ from fastapi.testclient import TestClient
 from unittest.mock import AsyncMock, MagicMock
 
 # Set test environment variables before importing the app
-os.environ["ARK_API_TOKEN"] = "test-token-for-testing"
+os.environ["API_TOKEN"] = "test-token-for-testing"
+os.environ["LLM_PROVIDER"] = "openai"  # Use OpenAI for tests
+os.environ["EMBEDDING_PROVIDER"] = "openai"
 os.environ["DATABASE_FILE"] = ":memory:"
 os.environ["QUERY_CACHE_FILE"] = "/tmp/test_query_cache.json"
 os.environ["LOG_LEVEL"] = "error"  # Reduce noise in tests
@@ -19,7 +21,7 @@ os.environ["LOG_LEVEL"] = "error"  # Reduce noise in tests
 from src.main import app, db, vector_store, ark_client
 from src.core.database import Database
 from src.services.vector_store import VectorStore
-from src.services.api_client import ArkAPIClient
+from src.services.multi_provider_client import MultiProviderAPIClient
 
 
 @pytest.fixture(scope="session")
@@ -56,19 +58,30 @@ def test_vector_store() -> Generator[VectorStore, None, None]:
 
 @pytest.fixture
 def mock_ark_client() -> Generator[MagicMock, None, None]:
-    """Create a mock ARK API client."""
-    mock_client = MagicMock(spec=ArkAPIClient)
+    """Create a mock multi-provider API client."""
+    mock_client = MagicMock(spec=MultiProviderAPIClient)
     
     # Mock common methods
-    mock_client.health_check = AsyncMock(return_value={"status": "healthy"})
-    mock_client.generate_keywords = AsyncMock(return_value=["test", "keyword"])
-    mock_client.get_embeddings = AsyncMock(return_value=[0.1] * 2048)
+    mock_client.health_check = AsyncMock(return_value={
+        "status": "healthy",
+        "llm_provider": {"provider_type": "OpenAIProvider", "status": "healthy"},
+        "embedding_provider": {"provider_type": "OpenAIProvider", "status": "available"}
+    })
+    mock_client.generate_keywords_and_description = AsyncMock(return_value={
+        "keywords": "test, keyword, sample",
+        "description": "Test description",
+        "improved_title": "Test Title"
+    })
+    mock_client.generate_embedding = AsyncMock(return_value=[0.1] * 3072)  # OpenAI embedding dimension
     mock_client.get_cache_stats = MagicMock(return_value={
         "size": 0,
         "hits": 0,
         "misses": 0,
         "hit_rate": 0.0
     })
+    mock_client.clear_cache = MagicMock(return_value=True)
+    mock_client.cleanup_cache = MagicMock(return_value=0)
+    mock_client.get_top_cached_queries = MagicMock(return_value=[])
     
     # Mock query cache
     mock_client.query_cache = MagicMock()

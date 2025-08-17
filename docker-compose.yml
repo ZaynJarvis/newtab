@@ -11,12 +11,9 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - HOST=0.0.0.0
-      - PORT=8000
-      - DATABASE_FILE=/app/data/web_memory.db
-      - QUERY_CACHE_FILE=/app/data/query_embeddings_cache.json
-      - ARK_API_TOKEN=${ARK_API_TOKEN}
       - PYTHONPATH=/app
+    env_file:
+      - ./backend/.env
     volumes:
       - ./data/backend:/app/data
       - ./logs/backend:/app/logs

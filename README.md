@@ -15,7 +15,18 @@ A privacy-first Chrome extension that **automatically indexes** your browsing hi
 # 1. Clone
 git clone https://github.com/ZaynJarvis/newtab && cd newtab
 
-# 2. Get ARK API Token from bytedance ARK，then set it in env (or docker-compose.yml) file
+# 2. Configure LLM Provider (choose one):
+
+# Option A: OpenAI (Recommended)
+cp backend/.env.example backend/.env
+# Edit .env: set API_TOKEN=sk-your-openai-key
+
+# Option B: Keep ARK (Existing Users)
+cp backend/.env.ark backend/.env
+# Edit .env: set API_TOKEN=your-ark-token
+
+# Option C: Other Providers (Claude, Groq)
+# See LLM_PROVIDERS.md for detailed setup
 
 # 3. Start backend
 docker compose -f docker-compose.yml up -d
@@ -23,7 +34,8 @@ docker compose -f docker-compose.yml up -d
 # 4. Load extension: chrome://extensions/ → Developer mode → Load unpacked → 'extension' folder
 ```
 
-**📖 Full installation guide:** [INSTALL.md](INSTALL.md)
+**📖 Full installation guide:** [INSTALL.md](INSTALL.md)  
+**🤖 LLM Provider setup:** [LLM_PROVIDERS.md](LLM_PROVIDERS.md)
 
 ## 🧪 Testing
 
@@ -53,11 +65,29 @@ curl "http://localhost:8000/search?q=test"
 
 **📖 Full testing guide:** [E2E_TESTING_GUIDE.md](E2E_TESTING_GUIDE.md)
 
+## 🤖 LLM Provider Support
+
+Choose your preferred AI provider for optimal performance and cost:
+
+| Provider | LLM Support | Embeddings | Speed | Cost | Setup |
+|----------|-------------|------------|-------|------|-------|
+| **OpenAI** | ✅ GPT-4 | ✅ text-embedding-3 | ⭐⭐⭐ | ⭐⭐ | [Quick setup](LLM_PROVIDERS.md#openai) |
+| **Claude** | ✅ Claude-3 | ❌ | ⭐⭐⭐ | ⭐⭐ | [Setup guide](LLM_PROVIDERS.md#claude) |
+| **Groq** | ✅ Llama3 | ❌ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | [Setup guide](LLM_PROVIDERS.md#groq) |
+| **ARK** | ✅ Custom | ✅ Custom | ⭐⭐⭐ | ⭐⭐⭐ | [Internal setup](LLM_PROVIDERS.md#ark) |
+
+**💡 Recommendations:**
+- **New users**: Start with OpenAI (most reliable)
+- **Speed focused**: Use Groq for LLM + OpenAI for embeddings
+- **Privacy focused**: Deploy local OpenAI-compatible models
+
+[**📖 Detailed Provider Guide →**](LLM_PROVIDERS.md)
+
 ## 🚀 Features
 
 ### ✨ **Smart Indexing**
 - **Auto-captures** every unique webpage you visit
-- **AI-generated** keywords and descriptions via ByteDance Ark LLM
+- **AI-generated** keywords and descriptions via multiple LLM providers
 - **Vector embeddings** for semantic similarity search
 - **Background processing** - no interruption to browsing
 - **Frequency tracking** with ARC-based visit analytics and page scoring
@@ -123,7 +153,7 @@ graph TB
 | **Vector Store** | Semantic similarity search | NumPy + Cosine similarity |
 | **Query Cache** | LRU embedding cache for offline search | Thread-safe LRU + JSON persistence |
 | **ARC Cache** | Intelligent page eviction | Adaptive Replacement Cache algorithm |
-| **AI Client** | LLM processing & embeddings | ByteDance Ark APIs |
+| **AI Client** | LLM processing & embeddings | Multi-provider (OpenAI, Claude, Groq, ARK) |
 | **Extension** | Browser integration | Chrome Manifest V3 |
 
 ## 📋 API Reference

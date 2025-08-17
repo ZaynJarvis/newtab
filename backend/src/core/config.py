@@ -1,8 +1,8 @@
 """Configuration settings for the New Tab backend service."""
 
 import os
-from typing import Optional
-from pydantic import Field, field_validator
+from typing import Optional, Dict, Any
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,10 +16,14 @@ class Settings(BaseSettings):
         extra="ignore"
     )
     
-    # API Configuration
-    ark_api_token: str = Field(
-        ...,
-        description="ByteDance ARK API token for LLM and embeddings"
+    # LLM API Configuration
+    llm_api_token: str = Field(
+        description="API token for LLM provider"
+    )
+    
+    # Embedding API Configuration  
+    embedding_api_token: str = Field(
+        description="API token for embedding provider"
     )
     
     # Server Configuration
@@ -40,24 +44,34 @@ class Settings(BaseSettings):
         description="Logging level"
     )
     
-    # API Endpoints
-    llm_endpoint: str = Field(
-        default="https://ark-cn-beijing.bytedance.net/api/v3/chat/completions",
-        description="ByteDance ARK LLM endpoint"
+    # Provider Configuration
+    llm_provider: str = Field(
+        default="openai",
+        description="LLM provider (openai, claude, groq, ark)"
     )
-    embedding_endpoint: str = Field(
-        default="https://ark-cn-beijing.bytedance.net/api/v3/embeddings/multimodal",
-        description="ByteDance ARK embedding endpoint"
+    embedding_provider: str = Field(
+        default="openai",
+        description="Embedding provider (openai, ark)"
+    )
+    
+    # API Endpoints (provider-specific)
+    llm_endpoint: Optional[str] = Field(
+        default=None,
+        description="Custom LLM endpoint URL (overrides provider defaults)"
+    )
+    embedding_endpoint: Optional[str] = Field(
+        default=None,
+        description="Custom embedding endpoint URL (overrides provider defaults)"
     )
     
     # Model Configuration
-    llm_model: str = Field(
-        default="ep-20250529215531-dfpgt",
-        description="LLM model identifier"
+    llm_model: Optional[str] = Field(
+        default=None,
+        description="LLM model identifier (uses provider defaults if not specified)"
     )
-    embedding_model: str = Field(
-        default="ep-20250529220411-grkkv",
-        description="Embedding model identifier"
+    embedding_model: Optional[str] = Field(
+        default=None,
+        description="Embedding model identifier (uses provider defaults if not specified)"
     )
     
     # Vector Store Configuration
@@ -108,13 +122,52 @@ class Settings(BaseSettings):
         description="SQLite database file name"
     )
     
-    @field_validator("ark_api_token")
+    
+    @field_validator("llm_provider")
     @classmethod
-    def validate_api_token(cls, v: str) -> str:
-        """Validate that the API token is not empty."""
-        if not v or v.strip() == "":
-            raise ValueError("ARK_API_TOKEN cannot be empty")
-        return v.strip()
+    def validate_llm_provider(cls, v: str) -> str:
+        """Validate LLM provider."""
+        valid_providers = {"openai", "claude", "groq", "ark"}
+        if v.lower() not in valid_providers:
+            raise ValueError(f"llm_provider must be one of {valid_providers}")
+        return v.lower()
+    
+    @field_validator("embedding_provider")
+    @classmethod
+    def validate_embedding_provider(cls, v: str) -> str:
+        """Validate embedding provider."""
+        valid_providers = {"openai", "ark"}
+        if v.lower() not in valid_providers:
+            raise ValueError(f"embedding_provider must be one of {valid_providers}")
+        return v.lower()
+    
+    
+    def get_provider_defaults(self) -> Dict[str, Dict[str, Any]]:
+        """Get default configurations for each provider."""
+        return {
+            "openai": {
+                "llm_endpoint": "https://api.openai.com/v1/chat/completions",
+                "embedding_endpoint": "https://api.openai.com/v1/embeddings",
+                "llm_model": "gpt-4-turbo-preview",
+                "embedding_model": "text-embedding-3-large",
+                "embedding_dimension": 3072
+            },
+            "claude": {
+                "llm_endpoint": "https://api.anthropic.com/v1/messages",
+                "llm_model": "claude-3-sonnet-20240229"
+            },
+            "groq": {
+                "llm_endpoint": "https://api.groq.com/openai/v1/chat/completions",
+                "llm_model": "llama3-70b-8192"
+            },
+            "ark": {
+                "llm_endpoint": "https://ark-cn-beijing.bytedance.net/api/v3/chat/completions",
+                "embedding_endpoint": "https://ark-cn-beijing.bytedance.net/api/v3/embeddings/multimodal",
+                "llm_model": "ep-20250529215531-dfpgt",
+                "embedding_model": "ep-20250529220411-grkkv",
+                "embedding_dimension": 2048
+            }
+        }
     
     @field_validator("log_level")
     @classmethod

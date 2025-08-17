@@ -19,6 +19,8 @@ from src.core.exceptions import (
     validation_exception_handler
 )
 from src.services.api_client import ArkAPIClient
+from src.services.multi_provider_client import MultiProviderAPIClient
+from src.services.provider_factory import ProviderFactory
 from src.core.database import Database
 from src.services.vector_store import VectorStore
 from src.api.health import router as health_router
@@ -37,7 +39,10 @@ logger = get_logger(__name__)
 try:
     config = settings
     logger.info("Configuration loaded successfully", extra={
-        "ark_api_token_prefix": config.ark_api_token[:8] + "...",
+        "llm_api_token_prefix": config.llm_api_token[:8] + "...",
+        "embedding_api_token_prefix": config.embedding_api_token[:8] + "...",
+        "llm_provider": config.llm_provider,
+        "embedding_provider": config.embedding_provider,
         "host": config.host,
         "port": config.port,
         "log_level": config.log_level
@@ -45,8 +50,8 @@ try:
 except Exception as e:
     logger.critical("Failed to load configuration", extra={"error": str(e)}, exc_info=True)
     logger.critical("Configuration setup required", extra={
-        "required_env_var": "ARK_API_TOKEN",
-        "setup_example": "export ARK_API_TOKEN=\"your-api-token-here\"",
+        "required_env_var": "API_TOKEN",
+        "setup_example": "export API_TOKEN=\"your-api-token-here\"",
         "event": "configuration_setup_required"
     })
     sys.exit(1)
@@ -201,12 +206,27 @@ db = Database(config.database_file)
 vector_store = VectorStore(dimension=config.vector_dimension, max_vectors=config.max_vectors)
 ark_client = None
 
-# Initialize Ark API client
+# Validate provider configuration
+is_valid, error_msg = ProviderFactory.validate_provider_compatibility(config)
+if not is_valid:
+    logger.critical("Invalid provider configuration", extra={
+        "error": error_msg,
+        "llm_provider": config.llm_provider,
+        "embedding_provider": config.embedding_provider,
+        "event": "invalid_provider_config"
+    })
+    sys.exit(1)
+
+# Initialize Multi-Provider API client
 try:
-    ark_client = ArkAPIClient(config)
-    logger.info("Ark API client initialized successfully")
+    ark_client = MultiProviderAPIClient(config)
+    logger.info("Multi-provider API client initialized successfully", extra={
+        "llm_provider": config.llm_provider,
+        "embedding_provider": config.embedding_provider,
+        "event": "api_client_initialized"
+    })
 except Exception as e:
-    logger.warning("Ark API client initialization failed, running in mock mode", extra={
+    logger.warning("Multi-provider API client initialization failed, running in mock mode", extra={
         "error": str(e),
         "mode": "mock",
         "event": "api_client_mock_mode"

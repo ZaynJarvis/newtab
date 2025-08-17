@@ -1,6 +1,7 @@
 # Database files
 backend/web_memory.db
 *.db
+.playwright*
 
 # Cache files
 backend/query_embeddings_cache.json
@@ -11,6 +12,7 @@ backend/query_embeddings_cache.tmp
 # Environment files
 .env
 backend/.env
+backend/.env.ark
 
 # Data directories
 data/backend/*
