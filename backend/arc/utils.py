@@ -5,6 +5,7 @@ Utility functions for ARC cache and eviction policies.
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 import json
+import logging
 
 
 def calculate_arc_score(visit_count: int, last_visited: Optional[datetime], 
@@ -205,6 +206,7 @@ class ARCConfigManager:
     def __init__(self, config_file: Optional[str] = None):
         """Initialize configuration manager."""
         self.config_file = config_file
+        self.logger = logging.getLogger(__name__)
         self.default_config = {
             'cache_capacity': 1000,
             'eviction_policy': 'arc',
@@ -240,7 +242,11 @@ class ARCConfigManager:
             with open(self.config_file, 'w') as f:
                 json.dump(self.config, f, indent=2)
         except Exception as e:
-            print(f"Failed to save config: {e}")
+            self.logger.error("Failed to save ARC configuration", extra={
+                "config_file": self.config_file,
+                "error": str(e),
+                "event": "arc_config_save_failed"
+            }, exc_info=True)
     
     def get(self, key: str, default=None):
         """Get configuration value."""

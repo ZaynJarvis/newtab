@@ -8,6 +8,7 @@ import httpx
 import time
 from datetime import datetime
 from src.cache.query_embedding_cache import QueryEmbeddingCache
+from src.core.logging import get_logger, log_api_call
 
 if TYPE_CHECKING:
     from src.core.config import Settings
@@ -17,6 +18,7 @@ class ArkAPIClient:
     """Client for ByteDance Ark API services."""
     
     def __init__(self, config: Optional["Settings"] = None, api_key: Optional[str] = None):
+        self.logger = get_logger(__name__)
         """Initialize the API client."""
         if config:
             # Use new configuration system
@@ -84,7 +86,15 @@ class ArkAPIClient:
                 elif response.status_code == 429:
                     if retries < self.max_retries:
                         wait_time = self.retry_delay * (2 ** retries)  # Exponential backoff
-                        print(f"Rate limited, waiting {wait_time}s before retry {retries + 1}/{self.max_retries}")
+                        self.logger.warning(
+                            "Rate limited, waiting before retry",
+                            extra={
+                                "wait_time_seconds": wait_time,
+                                "retry_attempt": retries + 1,
+                                "max_retries": self.max_retries,
+                                "event": "rate_limit_retry"
+                            }
+                        )
                         await asyncio.sleep(wait_time)
                         return await self._make_request(url, payload, retries + 1)
                     else:
@@ -94,7 +104,16 @@ class ArkAPIClient:
                 else:
                     error_msg = f"API request failed with status {response.status_code}: {response.text}"
                     if retries < self.max_retries:
-                        print(f"Request failed, retrying {retries + 1}/{self.max_retries}: {error_msg}")
+                        self.logger.warning(
+                            "API request failed, retrying",
+                            extra={
+                                "status_code": response.status_code,
+                                "retry_attempt": retries + 1,
+                                "max_retries": self.max_retries,
+                                "error_message": error_msg,
+                                "event": "api_request_retry"
+                            }
+                        )
                         await asyncio.sleep(self.retry_delay)
                         return await self._make_request(url, payload, retries + 1)
                     else:
@@ -102,7 +121,14 @@ class ArkAPIClient:
         
         except httpx.TimeoutException:
             if retries < self.max_retries:
-                print(f"Request timeout, retrying {retries + 1}/{self.max_retries}")
+                self.logger.warning(
+                    "Request timeout, retrying",
+                    extra={
+                        "retry_attempt": retries + 1,
+                        "max_retries": self.max_retries,
+                        "event": "timeout_retry"
+                    }
+                )
                 await asyncio.sleep(self.retry_delay)
                 return await self._make_request(url, payload, retries + 1)
             else:
@@ -110,7 +136,15 @@ class ArkAPIClient:
         
         except Exception as e:
             if retries < self.max_retries:
-                print(f"Request error, retrying {retries + 1}/{self.max_retries}: {str(e)}")
+                self.logger.warning(
+                    "Request error, retrying",
+                    extra={
+                        "retry_attempt": retries + 1,
+                        "max_retries": self.max_retries,
+                        "error": str(e),
+                        "event": "generic_error_retry"
+                    }
+                )
                 await asyncio.sleep(self.retry_delay)
                 return await self._make_request(url, payload, retries + 1)
             else:
@@ -219,7 +253,16 @@ Please respond in this exact JSON format:
             }
         
         except Exception as e:
-            print(f"Error generating keywords/description: {str(e)}")
+            self.logger.error(
+                "Error generating keywords/description",
+                extra={
+                    "error": str(e),
+                    "title": title[:100],
+                    "content_length": len(content),
+                    "event": "keywords_generation_error"
+                },
+                exc_info=True
+            )
             return {
                 "keywords": "web page, content",
                 "description": f"Content from {title}",
@@ -249,7 +292,13 @@ Please respond in this exact JSON format:
         # Step 1: Check cache for exact match
         cached_embedding = self.query_cache.get(text)
         if cached_embedding is not None:
-            print(f"Using cached embedding for query: {text[:50]}...")
+            self.logger.debug(
+                "Using cached embedding for query",
+                extra={
+                    "query_preview": text[:50],
+                    "event": "embedding_cache_hit"
+                }
+            )
             return cached_embedding
         
         # Step 2: Call embedding API and cache result
@@ -279,16 +328,36 @@ Please respond in this exact JSON format:
             if embedding:
                 # Cache successful API response
                 self.query_cache.put(text, embedding)
-                print(f"Generated and cached new embedding for query: {text[:50]}...")
+                self.logger.info(
+                    "Generated and cached new embedding for query",
+                    extra={
+                        "query_preview": text[:50],
+                        "embedding_dimension": len(embedding),
+                        "event": "embedding_generated"
+                    }
+                )
                 return embedding
             
             # Fallback: return mock embedding
-            print("Warning: Could not extract embedding from API response, using mock")
-            print(f"Response structure: {response}")
+            self.logger.warning(
+                "Could not extract embedding from API response, using mock",
+                extra={
+                    "response_structure": str(response)[:500],
+                    "event": "embedding_fallback_mock"
+                }
+            )
             return self._generate_mock_embedding()
         
         except Exception as e:
-            print(f"Error generating embedding: {str(e)}, using mock")
+            self.logger.error(
+                "Error generating embedding, using mock",
+                extra={
+                    "error": str(e),
+                    "query_preview": text[:50],
+                    "event": "embedding_error_fallback"
+                },
+                exc_info=True
+            )
             return self._generate_mock_embedding()
     
     def _generate_mock_embedding(self) -> List[float]:

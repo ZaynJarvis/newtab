@@ -43,10 +43,12 @@ try:
         "log_level": config.log_level
     })
 except Exception as e:
-    logger.critical("Failed to load configuration", extra={"error": str(e)})
-    print(f"❌ ERROR: Failed to load configuration: {e}")
-    print("Please ensure ARK_API_TOKEN is set in environment or .env file")
-    print("Example: export ARK_API_TOKEN=\"your-api-token-here\"")
+    logger.critical("Failed to load configuration", extra={"error": str(e)}, exc_info=True)
+    logger.critical("Configuration setup required", extra={
+        "required_env_var": "ARK_API_TOKEN",
+        "setup_example": "export ARK_API_TOKEN=\"your-api-token-here\"",
+        "event": "configuration_setup_required"
+    })
     sys.exit(1)
 
 # Initialize FastAPI app
@@ -204,9 +206,11 @@ try:
     ark_client = ArkAPIClient(config)
     logger.info("Ark API client initialized successfully")
 except Exception as e:
-    logger.warning("Ark API client initialization failed, running in mock mode", extra={"error": str(e)})
-    print(f"⚠️  Ark API client initialization failed: {e}")
-    print("🔄 Running in mock mode")
+    logger.warning("Ark API client initialization failed, running in mock mode", extra={
+        "error": str(e),
+        "mode": "mock",
+        "event": "api_client_mock_mode"
+    }, exc_info=True)
 
 
 # Inject dependencies into API routers

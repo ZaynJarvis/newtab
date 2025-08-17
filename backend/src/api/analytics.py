@@ -3,9 +3,11 @@
 from datetime import datetime, timedelta
 from fastapi import APIRouter, HTTPException
 from src.core.models import VisitTrackingRequest, FrequencyAnalyticsResponse
+from src.core.logging import get_logger
 
 
 router = APIRouter()
+logger = get_logger(__name__)
 
 # Import dependencies - will be injected at runtime
 db = None
@@ -36,7 +38,13 @@ async def track_visit(visit_data: VisitTrackingRequest):
             if random.randint(1, 100) == 1:  # 1% chance to check eviction
                 eviction_result = db.check_and_evict_pages()
                 if eviction_result['evicted_count'] > 0:
-                    print(f"🧹 Auto-evicted {eviction_result['evicted_count']} pages during visit tracking")
+                    logger.info(
+                        "Auto-evicted pages during visit tracking",
+                        extra={
+                            "evicted_count": eviction_result['evicted_count'],
+                            "event": "auto_eviction"
+                        }
+                    )
             
             return {
                 "status": "success",

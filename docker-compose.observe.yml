@@ -1,9 +1,6 @@
 # Docker Compose for Observability Stack
 # Monitoring and logging infrastructure for New Tab application
 # Run with: docker-compose -f docker-compose.observe.yml up -d
-
-version: '3.8'
-
 services:
   # Container metrics collection
   cadvisor:
@@ -119,6 +116,7 @@ networks:
   monitoring:
     driver: bridge
     name: newtab-monitoring
+    external: false
 
 volumes:
   prometheus_data:

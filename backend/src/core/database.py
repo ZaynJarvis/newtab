@@ -7,6 +7,7 @@ from typing import List, Optional, Tuple, Dict, Any
 from pathlib import Path
 
 from src.core.models import PageCreate, PageResponse
+from src.core.logging import get_logger
 
 try:
     from arc.eviction import ARCEvictionPolicy, EvictionPolicy
@@ -38,6 +39,7 @@ class Database:
         self.db_path = db_path
         self.max_pages = max_pages
         self.eviction_policy = ARCEvictionPolicy()
+        self.logger = get_logger(__name__)
         self.init_database()
     
     def get_connection(self) -> sqlite3.Connection:
@@ -167,7 +169,11 @@ class Database:
                     if isinstance(embedding, list) and len(embedding) > 0:
                         return embedding
                 except (json.JSONDecodeError, TypeError) as e:
-                    print(f"Error parsing stored embedding for page {page_id}: {e}")
+                    self.logger.error("Error parsing stored embedding for page", extra={
+                        "page_id": page_id,
+                        "error": str(e),
+                        "event": "embedding_parse_error"
+                    }, exc_info=True)
             
             return None
     
@@ -264,9 +270,16 @@ class Database:
             if col_name not in columns:
                 try:
                     conn.execute(f"ALTER TABLE pages ADD COLUMN {col_name} {col_def}")
-                    print(f"✅ Added column {col_name} to pages table")
+                    self.logger.info("Added column to pages table", extra={
+                        "column_name": col_name,
+                        "event": "database_column_added"
+                    })
                 except sqlite3.OperationalError as e:
-                    print(f"⚠️  Failed to add column {col_name}: {e}")
+                    self.logger.warning("Failed to add column to pages table", extra={
+                        "column_name": col_name,
+                        "error": str(e),
+                        "event": "database_column_add_failed"
+                    })
                     pass  # Column might already exist
         
         # Initialize existing pages with default values if needed
@@ -380,7 +393,11 @@ class Database:
     
     def _suppress_all_counts(self, conn):
         """Divide all visit counts by 2 when any page exceeds 1 million visits."""
-        print("⚠️ Visit count exceeded 1 million, suppressing all counts by dividing by 2")
+        self.logger.warning("Visit count exceeded threshold, suppressing all counts by dividing by 2", extra={
+            "threshold": 1000000,
+            "action": "count_suppression",
+            "event": "visit_count_suppression"
+        })
         
         # Divide all visit counts by 2
         conn.execute("""
@@ -496,7 +513,11 @@ class Database:
             if self.delete_page(page_id):
                 evicted_count += 1
         
-        print(f"🗑️  Evicted {evicted_count} pages using ARC policy")
+        self.logger.info("Page eviction completed", extra={
+            "evicted_count": evicted_count,
+            "policy": "ARC",
+            "event": "page_eviction_completed"
+        })
         
         return {
             'evicted_count': evicted_count,

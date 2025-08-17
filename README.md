@@ -209,6 +209,64 @@ curl -X POST localhost:8000/cache/query/cleanup
 - 💰 **Cost reduction** by minimizing API calls
 - 📊 **Analytics** for query patterns and optimization
 
+## 📊 Observability & Monitoring (Add-ons)
+
+New Tab includes optional monitoring and observability features for production deployments:
+
+### 🔧 **Quick Start Monitoring Stack**
+
+```bash
+# Start with observability (Prometheus, Grafana, Loki)
+docker compose -f docker-compose.observe.yml up -d
+
+# Access monitoring interfaces
+open http://localhost:3000  # Grafana dashboards
+open http://localhost:9090  # Prometheus metrics
+```
+
+### 📈 **Monitoring Features**
+
+| Component | Purpose | Port | Technology |
+|-----------|---------|------|------------|
+| **Grafana** | Visual dashboards & alerting | `:3000` | Grafana 10.0 |
+| **Prometheus** | Metrics collection & storage | `:9090` | Prometheus 2.45 |
+| **Loki** | Log aggregation & search | `:3100` | Loki 2.8 |
+| **Promtail** | Log collection agent | N/A | Promtail 2.8 |
+| **cAdvisor** | Container metrics | `:8080` | cAdvisor 0.47 |
+| **Node Exporter** | System metrics | `:9100` | Node Exporter 1.6 |
+
+### 📊 **Structured Logging**
+
+The backend uses comprehensive structured JSON logging:
+
+```json
+{
+  "timestamp": "2025-08-17T12:03:37.665865Z",
+  "level": "INFO",
+  "logger": "src.services.api_client",
+  "message": "Generated and cached new embedding for query",
+  "extra": {
+    "query_preview": "machine learning fundamentals",
+    "embedding_dimension": 2048,
+    "event": "embedding_generated"
+  }
+}
+```
+
+### 🎯 **Key Metrics Available**
+
+- **API Performance**: Request latency, throughput, error rates
+- **Search Analytics**: Query patterns, cache hit rates, response times
+- **Memory Usage**: Vector store efficiency, database growth
+- **AI Processing**: Embedding generation, LLM API calls, error rates
+- **Cache Performance**: Query cache hits/misses, eviction rates
+
+### 📚 **Documentation**
+
+- **Setup Guide**: [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md)
+- **Monitoring Guide**: [docs/MONITORING.md](docs/MONITORING.md)
+- **Dashboard Configs**: [config/grafana/](config/grafana/)
+
 ## 🧪 Testing & Demo
 
 ```bash
@@ -230,24 +288,43 @@ uv run python demo/test_backend.py
 ```
 newtab/
 ├── backend/           # 🟢 Production Ready
-│   ├── main.py       # FastAPI application
-│   ├── database.py   # SQLite + FTS5 + frequency tracking
-│   ├── vector_store.py # In-memory vector search
-│   ├── api_client.py # ByteDance Ark integration
-│   ├── query_embedding_cache.py # LRU cache for query embeddings
-│   ├── models.py     # Pydantic models + frequency types
-│   ├── test_query_cache.py # Unit tests for embedding cache
-│   └── arc/          # ARC-based eviction system
-│       ├── eviction.py    # Eviction policies
-│       ├── arc_cache.py   # ARC algorithm implementation
-│       └── utils.py       # Cache utilities
-├── extension/        # 🟡 In Development
-│   ├── manifest.json # Chrome Extension config
-│   ├── newtab/      # New tab override UI
-│   └── content/     # Content extraction scripts
-└── demo/            # 🟢 Complete
-    ├── test-data-generator.py
-    └── quick-test.py
+│   ├── src/
+│   │   ├── main.py       # FastAPI application
+│   │   ├── core/
+│   │   │   ├── database.py   # SQLite + FTS5 + frequency tracking
+│   │   │   ├── logging.py    # Structured JSON logging
+│   │   │   └── models.py     # Pydantic models + frequency types
+│   │   ├── services/
+│   │   │   ├── vector_store.py # In-memory vector search
+│   │   │   └── api_client.py   # ByteDance Ark integration
+│   │   ├── cache/
+│   │   │   └── query_embedding_cache.py # LRU cache for query embeddings
+│   │   └── api/          # API endpoints
+│   │       ├── indexing.py   # Page indexing
+│   │       ├── search.py     # Search endpoints
+│   │       └── monitoring.py # Metrics & observability
+│   ├── arc/              # ARC-based eviction system
+│   │   ├── eviction.py       # Eviction policies
+│   │   ├── arc_cache.py      # ARC algorithm implementation
+│   │   └── utils.py          # Cache utilities
+│   └── tests/            # Test suite
+├── config/            # 📊 Observability (Add-on)
+│   ├── grafana/          # Dashboard configs
+│   ├── prometheus/       # Metrics collection
+│   ├── loki/            # Log aggregation
+│   └── promtail/        # Log shipping
+├── extension/         # 🟡 In Development
+│   ├── manifest.json     # Chrome Extension config
+│   ├── newtab/          # New tab override UI
+│   └── content/         # Content extraction scripts
+├── docs/              # 📚 Documentation
+│   ├── OBSERVABILITY.md # Monitoring setup guide
+│   └── MONITORING.md    # Dashboard guide
+├── demo/              # 🟢 Complete
+│   ├── test-data-generator.py
+│   └── quick-test.py
+├── docker-compose.yml      # Basic deployment
+└── docker-compose.observe.yml # With monitoring stack
 ```
 
 ## 🛠️ Development

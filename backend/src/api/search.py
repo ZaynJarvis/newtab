@@ -3,9 +3,11 @@
 import asyncio
 from fastapi import APIRouter, HTTPException
 from src.core.models import UnifiedSearchResponse
+from src.core.logging import get_logger
 
 
 router = APIRouter()
+logger = get_logger(__name__)
 
 # Import dependencies - will be injected at runtime
 db = None
@@ -60,7 +62,11 @@ async def unified_search(q: str):
                 results, total = db.search_keyword(q, MAX_RESULTS * 2)
                 return results
             except Exception as e:
-                print(f"Keyword search error: {e}")
+                logger.error("Keyword search failed", extra={
+                    "query": q,
+                    "error": str(e),
+                    "event": "keyword_search_error"
+                }, exc_info=True)
                 return []
         
         async def get_vector_results():
@@ -95,11 +101,18 @@ async def unified_search(q: str):
                 
                 return formatted_results
             except Exception as e:
-                print(f"Vector search error: {e}")
+                logger.error("Vector search failed, attempting fallback strategy", extra={
+                    "query": q,
+                    "error": str(e),
+                    "event": "vector_search_error"
+                }, exc_info=True)
                 
                 # Step 3: Fallback to keyword search top-1 result's embedding for similarity
                 try:
-                    print(f"Attempting fallback: using keyword search top result's embedding")
+                    logger.info("Attempting fallback using keyword search top result embedding", extra={
+                        "strategy": "keyword_top_result_embedding",
+                        "event": "vector_search_fallback"
+                    })
                     keyword_fallback_results, _ = db.search_keyword(q, 1)
                     
                     if keyword_fallback_results and len(keyword_fallback_results) > 0:
@@ -109,7 +122,12 @@ async def unified_search(q: str):
                         stored_embedding = db.get_page_embedding(top_result.id)
                         
                         if stored_embedding:
-                            print(f"Using stored embedding from top keyword result: {top_result.title[:50]}...")
+                            logger.info("Using stored embedding from top keyword result", extra={
+                                "page_id": top_result.id,
+                                "page_title": top_result.title[:50],
+                                "embedding_dimension": len(stored_embedding),
+                                "event": "fallback_embedding_found"
+                            })
                             
                             # Use top result's embedding for vector similarity search
                             fallback_vector_results = vector_store.search(
@@ -131,12 +149,22 @@ async def unified_search(q: str):
                             
                             return formatted_fallback
                         else:
-                            print(f"No stored embedding found for top keyword result")
+                            logger.warning("No stored embedding found for top keyword result", extra={
+                                "page_id": top_result.id,
+                                "event": "fallback_embedding_missing"
+                            })
                     else:
-                        print(f"No keyword results found for fallback")
+                        logger.warning("No keyword results found for fallback strategy", extra={
+                            "query": q,
+                            "event": "fallback_no_results"
+                        })
                 
                 except Exception as fallback_error:
-                    print(f"Fallback strategy also failed: {fallback_error}")
+                    logger.error("Fallback strategy also failed", extra={
+                        "query": q,
+                        "fallback_error": str(fallback_error),
+                        "event": "fallback_strategy_failed"
+                    }, exc_info=True)
                 
                 return []
         

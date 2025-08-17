@@ -7,6 +7,7 @@ from collections import OrderedDict
 from pathlib import Path
 from datetime import datetime, timedelta
 import threading
+from src.core.logging import get_logger
 
 
 class QueryEmbeddingCache:
@@ -30,6 +31,7 @@ class QueryEmbeddingCache:
             cache_file: File path for cache persistence
             ttl_days: Time-to-live in days for cached embeddings
         """
+        self.logger = get_logger(__name__)
         self.capacity = max(1, capacity)
         self.cache_file = Path(cache_file)
         self.ttl_seconds = ttl_days * 24 * 3600
@@ -247,7 +249,15 @@ class QueryEmbeddingCache:
                 return True
                 
         except Exception as e:
-            print(f"Failed to persist query embedding cache: {e}")
+            self.logger.error(
+                "Failed to persist query embedding cache",
+                extra={
+                    "error": str(e),
+                    "cache_file": str(self.cache_file),
+                    "event": "cache_persist_failed"
+                },
+                exc_info=True
+            )
             return False
     
     def _load_from_disk(self) -> bool:
@@ -278,11 +288,26 @@ class QueryEmbeddingCache:
                         if (current_time - entry['timestamp']) <= self.ttl_seconds:
                             self._cache[query] = entry
                 
-            print(f"Loaded {len(self._cache)} query embeddings from cache")
+            self.logger.info(
+                "Loaded query embeddings from cache",
+                extra={
+                    "entries_loaded": len(self._cache),
+                    "cache_file": str(self.cache_file),
+                    "event": "cache_loaded"
+                }
+            )
             return True
             
         except Exception as e:
-            print(f"Failed to load query embedding cache: {e}")
+            self.logger.error(
+                "Failed to load query embedding cache",
+                extra={
+                    "error": str(e),
+                    "cache_file": str(self.cache_file),
+                    "event": "cache_load_failed"
+                },
+                exc_info=True
+            )
             return False
     
     def force_save(self) -> bool:

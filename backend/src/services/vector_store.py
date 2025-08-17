@@ -5,6 +5,7 @@ from typing import List, Tuple, Dict, Optional
 from src.core.models import PageResponse
 from sklearn.cluster import KMeans
 from collections import defaultdict
+from src.core.logging import get_logger
 
 
 class VectorStore:
@@ -12,6 +13,7 @@ class VectorStore:
     
     def __init__(self, dimension: int = 1536, max_vectors: int = 10000):
         """Initialize vector store with specified dimension and capacity limit."""
+        self.logger = get_logger(__name__)
         self.dimension = dimension
         self.max_vectors = max_vectors
         self.vectors: Dict[int, np.ndarray] = {}  # page_id -> vector
@@ -26,7 +28,14 @@ class VectorStore:
         if len(self.vectors) >= self.max_vectors and page_id not in self.vectors:
             oldest_page_id = min(self.vectors.keys())
             self.remove_vector(oldest_page_id)
-            print(f"🗑️ Evicted oldest vector (page {oldest_page_id}) due to capacity limit")
+            self.logger.info(
+                "Evicted oldest vector due to capacity limit",
+                extra={
+                    "evicted_page_id": oldest_page_id,
+                    "max_vectors": self.max_vectors,
+                    "event": "vector_eviction"
+                }
+            )
         
         # Normalize the vector for better similarity computation
         vector_array = np.array(vector, dtype=np.float32)
@@ -134,7 +143,14 @@ class VectorStore:
             try:
                 self.add_vector(page_id, vector, page_data)
             except ValueError as e:
-                print(f"Warning: Skipping vector for page {page_id}: {e}")
+                self.logger.warning(
+                    "Skipping vector for page due to error",
+                    extra={
+                        "page_id": page_id,
+                        "error": str(e),
+                        "event": "vector_skip"
+                    }
+                )
     
     def _apply_score_cutoff_filtering(self, similarities: List[Tuple[PageResponse, float]], 
                                      drop_threshold: float = 0.15) -> List[Tuple[PageResponse, float]]:
@@ -236,7 +252,13 @@ class VectorStore:
                 return cutoff_idx
                 
         except Exception as e:
-            print(f"Clustering analysis failed: {e}")
+            self.logger.warning(
+                "Clustering analysis failed",
+                extra={
+                    "error": str(e),
+                    "event": "clustering_failed"
+                }
+            )
             
         return 0  # No clustering cutoff
     

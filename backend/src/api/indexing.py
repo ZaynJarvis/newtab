@@ -4,9 +4,11 @@ import time
 from typing import List
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from src.core.models import PageCreate, PageResponse, IndexResponse
+from src.core.logging import get_logger
 
 
 router = APIRouter()
+logger = get_logger(__name__)
 
 # Import dependencies - will be injected at runtime
 db = None
@@ -25,7 +27,13 @@ def inject_dependencies(database, api_client, vector_storage):
 async def process_page_ai(page_id: int, page: PageCreate):
     """Background task to process page with AI services."""
     if not ark_client:
-        print(f"Skipping AI processing for page {page_id} - no API client")
+        logger.info(
+            "Skipping AI processing - no API client",
+            extra={
+                "page_id": page_id,
+                "event": "ai_processing_skipped"
+            }
+        )
         return
     
     try:
@@ -56,10 +64,26 @@ async def process_page_ai(page_id: int, page: PageCreate):
         if updated_page and vector_embedding:
             vector_store.add_vector(page_id, vector_embedding, updated_page)
         
-        print(f"✅ AI processing completed for page {page_id}")
+        logger.info(
+            "AI processing completed successfully",
+            extra={
+                "page_id": page_id,
+                "final_title": final_title,
+                "has_embedding": bool(vector_embedding),
+                "event": "ai_processing_completed"
+            }
+        )
     
     except Exception as e:
-        print(f"❌ AI processing failed for page {page_id}: {e}")
+        logger.error(
+            "AI processing failed",
+            extra={
+                "page_id": page_id,
+                "error": str(e),
+                "event": "ai_processing_failed"
+            },
+            exc_info=True
+        )
 
 
 @router.post("/index", response_model=IndexResponse)
