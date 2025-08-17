@@ -64,7 +64,7 @@ class ProviderFactory:
         
         # Common provider arguments
         provider_kwargs = {
-            "api_key": config.llm_api_token,
+            "api_key": config.get_llm_api_token(),
             "timeout": config.request_timeout,
             "max_retries": config.max_retries,
             "retry_delay": config.retry_delay
@@ -122,7 +122,7 @@ class ProviderFactory:
         
         # Common provider arguments
         provider_kwargs = {
-            "api_key": config.embedding_api_token,
+            "api_key": config.get_embedding_api_token(),
             "timeout": config.request_timeout,
             "max_retries": config.max_retries,
             "retry_delay": config.retry_delay

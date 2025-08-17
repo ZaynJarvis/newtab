@@ -16,14 +16,17 @@ class Settings(BaseSettings):
         extra="ignore"
     )
     
-    # LLM API Configuration
-    llm_api_token: str = Field(
-        description="API token for LLM provider"
+    # API Configuration
+    api_token: str = Field(
+        description="Default API token for providers (fallback if specific tokens not provided)"
     )
-    
-    # Embedding API Configuration  
-    embedding_api_token: str = Field(
-        description="API token for embedding provider"
+    llm_api_token: Optional[str] = Field(
+        default=None,
+        description="Specific API token for LLM provider (uses api_token if not provided)"
+    )
+    embedding_api_token: Optional[str] = Field(
+        default=None,
+        description="Specific API token for embedding provider (uses api_token if not provided)"
     )
     
     # Server Configuration
@@ -177,6 +180,14 @@ class Settings(BaseSettings):
         if v.lower() not in valid_levels:
             raise ValueError(f"log_level must be one of {valid_levels}")
         return v.lower()
+    
+    def get_llm_api_token(self) -> str:
+        """Get the API token for LLM provider (specific token or fallback to default)."""
+        return self.llm_api_token or self.api_token
+    
+    def get_embedding_api_token(self) -> str:
+        """Get the API token for embedding provider (specific token or fallback to default)."""
+        return self.embedding_api_token or self.api_token
 
 
 def get_settings() -> Settings:
