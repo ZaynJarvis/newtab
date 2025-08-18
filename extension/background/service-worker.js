@@ -2,6 +2,9 @@
 const BACKEND_URL = 'http://localhost:8000';
 const STORAGE_KEY = 'localWebMemory';
 
+// Store popup connections for real-time status updates
+const popupConnections = new Set();
+
 // Initialize default settings and probe current tab
 chrome.runtime.onInstalled.addListener(async () => {
   // Only set defaults if no existing settings exist
@@ -32,10 +35,17 @@ async function probeCurrentActiveTab() {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab && tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
       console.log('🔍 SW: Extension startup: probing current tab:', tab.url);
-      await proactivelyProbeTab(tab.url);
+      // Use cache if available for startup probe (not force refresh)
+      await proactivelyProbeTab(tab.url, false);
+      // Update badge based on page status
+      await updateBadgeForCurrentTab(tab.url);
+    } else {
+      // Clear badge for non-indexable pages
+      updateBadge('', '');
     }
   } catch (error) {
     console.warn('⚠️ SW: Error probing current tab on startup:', error);
+    updateBadge('', ''); // Clear badge on error
   }
 }
 
@@ -117,7 +127,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ success: true });
       })
       .catch(error => {
-        console.error('❌ SW: Failed to invalidate cache:', error);
+        console.error('❌ SW: INVALIDATE_CACHE error:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true; // Keep message channel open
+    
+  } else if (request.type === 'UPDATE_BADGE') {
+    console.log('🏷️ SW: Received UPDATE_BADGE for:', request.url);
+    updateBadgeForCurrentTab(request.url)
+      .then(() => {
+        console.log('✅ SW: Badge updated successfully');
+        sendResponse({ success: true });
+      })
+      .catch(error => {
+        console.error('❌ SW: UPDATE_BADGE error:', error);
         sendResponse({ success: false, error: error.message });
       });
     return true; // Keep message channel open
@@ -133,6 +156,62 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return false; // Synchronous response
   }
 });
+
+// Handle popup connections for real-time status updates
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === 'popup-status-updates') {
+    console.log('🔗 SW: Popup connected for status updates');
+    popupConnections.add(port);
+    
+    // Handle messages from popup
+    port.onMessage.addListener(async (message) => {
+      if (message.type === 'REQUEST_TAB_STATUS') {
+        // Send current status for the requested URL
+        try {
+          const probeResult = await handlePageProbe(message.url);
+          port.postMessage({
+            type: 'STATUS_UPDATE',
+            url: message.url,
+            data: {
+              indexed: probeResult.indexed || false,
+              needsReindex: probeResult.needsReindex || false,
+              indexing: false,
+              pageId: probeResult.pageId || null
+            }
+          });
+        } catch (error) {
+          console.error('Error getting tab status for popup:', error);
+        }
+      }
+    });
+    
+    // Clean up when popup disconnects
+    port.onDisconnect.addListener(() => {
+      console.log('🔌 SW: Popup disconnected from status updates');
+      popupConnections.delete(port);
+    });
+  }
+});
+
+// Broadcast status updates to all connected popups
+function broadcastStatusUpdate(url, statusData) {
+  console.log('📡 SW: Broadcasting status update for:', url, statusData);
+  
+  // Send update to all connected popups
+  popupConnections.forEach((port) => {
+    try {
+      port.postMessage({
+        type: 'STATUS_UPDATE',
+        url: url,
+        data: statusData
+      });
+    } catch (error) {
+      console.warn('⚠️ SW: Failed to send status update to popup:', error);
+      // Remove disconnected port
+      popupConnections.delete(port);
+    }
+  });
+}
 
 // Handle page probe to check if already indexed
 async function handlePageProbe(url) {
@@ -226,6 +305,14 @@ async function handlePageIndexing(pageData, tab, sendResponse) {
     // Update status to indexing
     await updateStatus('indexing', pageData.url);
     
+    // Notify popups that indexing started
+    broadcastStatusUpdate(pageData.url, {
+      indexed: false,
+      needsReindex: false,
+      indexing: true,
+      pageId: null
+    });
+    
     // Send to backend API
     const response = await fetch(`${BACKEND_URL}/index`, {
       method: 'POST',
@@ -259,6 +346,14 @@ async function handlePageIndexing(pageData, tab, sendResponse) {
     };
     await cacheProbeResult(pageData.url, newProbeResult);
     
+    // Notify all connected popups about the status update
+    broadcastStatusUpdate(pageData.url, {
+      indexed: true,
+      needsReindex: false,
+      indexing: false,
+      pageId: result.id
+    });
+    
     // Update statistics only for new pages
     if (result.status === 'indexed') {
       await updateStatistics(pageData.url);
@@ -267,13 +362,8 @@ async function handlePageIndexing(pageData, tab, sendResponse) {
     // Update status to idle
     await updateStatus('idle');
     
-    // Update extension badge based on status
-    if (result.status === 'already_indexed') {
-      updateBadge('✓', '#3b82f6'); // Blue for already indexed
-    } else {
-      updateBadge('✓', '#4CAF50'); // Green for newly indexed
-    }
-    setTimeout(() => updateBadge('', ''), 3000);
+    // Update extension badge based on status - keep it persistent
+    updateBadge('✓', '#4CAF50'); // Green checkmark for indexed pages
     
     sendResponse({ 
       success: true, 
@@ -286,9 +376,19 @@ async function handlePageIndexing(pageData, tab, sendResponse) {
     console.error('Error indexing page:', error);
     await updateStatus('error', null, error.message);
     
-    // Update badge to show error
+    // Update badge to show error temporarily
     updateBadge('!', '#F44336');
-    setTimeout(() => updateBadge('', ''), 3000);
+    setTimeout(async () => {
+      // After error, check if page is indexed to restore proper badge
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab && tab.url) {
+          await updateBadgeForCurrentTab(tab.url);
+        }
+      } catch (error) {
+        updateBadge('', '');
+      }
+    }, 3000);
     
     sendResponse({ 
       success: false, 
@@ -464,6 +564,26 @@ function updateBadge(text, color) {
   }
 }
 
+// Update badge based on current tab's indexed status
+async function updateBadgeForCurrentTab(url) {
+  try {
+    // Check if page is indexed using cached probe result
+    const cachedResult = await getCachedProbeResult(url);
+    if (cachedResult && cachedResult.indexed && !cachedResult.needs_reindex) {
+      // Show green checkmark for indexed pages
+      updateBadge('✓', '#4CAF50');
+      console.log('✅ SW: Badge set to green for indexed page:', url);
+    } else {
+      // Clear badge for non-indexed pages
+      updateBadge('', '');
+      console.log('🗑️ SW: Badge cleared for non-indexed page:', url);
+    }
+  } catch (error) {
+    console.warn('⚠️ SW: Error updating badge for tab:', error);
+    updateBadge('', ''); // Clear badge on error
+  }
+}
+
 // Handle extension icon click (for browsers that don't support popup)
 chrome.action.onClicked.addListener((tab) => {
   chrome.tabs.create({ url: 'chrome://newtab' });
@@ -476,13 +596,17 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     // Skip chrome:// and extension pages
     if (tab.url.startsWith('chrome://') || 
         tab.url.startsWith('chrome-extension://')) {
+      updateBadge('', ''); // Clear badge for non-indexable pages
       return;
     }
     
-    console.log('🔍 SW: Tab loaded, proactively probing:', tab.url);
+    console.log('🔍 SW: Tab loaded, proactively probing (force refresh):', tab.url);
     
-    // Proactively probe the page to cache the result
-    await proactivelyProbeTab(tab.url);
+    // Force refresh cache on each page load
+    await proactivelyProbeTab(tab.url, true);
+    
+    // Update badge based on page status
+    await updateBadgeForCurrentTab(tab.url);
   }
 });
 
@@ -492,10 +616,17 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     const tab = await chrome.tabs.get(activeInfo.tabId);
     if (tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
       console.log('🔍 SW: Tab activated, proactively probing:', tab.url);
-      await proactivelyProbeTab(tab.url);
+      // Use cache if available for tab activation (not force refresh)
+      await proactivelyProbeTab(tab.url, false);
+      // Update badge based on page status
+      await updateBadgeForCurrentTab(tab.url);
+    } else {
+      // Clear badge for non-indexable pages
+      updateBadge('', '');
     }
   } catch (error) {
     console.warn('⚠️ SW: Error probing activated tab:', error);
+    updateBadge('', ''); // Clear badge on error
   }
 });
 
@@ -588,7 +719,7 @@ async function invalidatePageCache(url) {
 }
 
 // Proactively probe a tab's URL to cache the result
-async function proactivelyProbeTab(url) {
+async function proactivelyProbeTab(url, forceRefresh = false) {
   try {
     // Check if indexing is enabled
     const settings = await getSettings();
@@ -607,14 +738,16 @@ async function proactivelyProbeTab(url) {
       return;
     }
     
-    // Check if we already have fresh cache (within 5 minutes)
-    const cachedResult = await getCachedProbeResult(url);
-    if (cachedResult) {
-      console.log('Using cached probe result for:', url);
-      return;
+    // Check if we already have fresh cache (within 5 minutes) - skip if force refresh
+    if (!forceRefresh) {
+      const cachedResult = await getCachedProbeResult(url);
+      if (cachedResult) {
+        console.log('Using cached probe result for:', url);
+        return;
+      }
     }
     
-    console.log('Proactively probing:', url);
+    console.log('Proactively probing:', url, forceRefresh ? '(force refresh)' : '');
     
     // Call probe API and cache the result
     const response = await fetch(`${BACKEND_URL}/probe?url=${encodeURIComponent(url)}`);

@@ -1,5 +1,15 @@
 // Popup script for status display and controls
 
+// Real-time connection to background script for status updates
+let statusUpdatePort = null;
+
+// Current page data for delete functionality
+let currentPageData = {
+  url: null,
+  pageId: null,
+  indexed: false
+};
+
 // Utility function to send messages with timeout to prevent blocking
 function sendMessageWithTimeout(message, timeoutMs = 2000) {
   return new Promise((resolve, reject) => {
@@ -27,11 +37,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const toggleLabel = document.getElementById('toggleLabel');
   const indexingStatus = document.getElementById('indexingStatus');
   
+  // Set up real-time status updates
+  setupStatusUpdateConnection();
+  
   // Load current status
   loadStatus();
   
   // Set up event listeners
   indexingToggle.addEventListener('change', handleToggleChange);
+  
+  // Set up delete button
+  const deletePageBtn = document.getElementById('deletePageBtn');
+  if (deletePageBtn) {
+    deletePageBtn.addEventListener('click', handleDeletePage);
+  }
   
   // Load status from service worker and backend
   async function loadStatus() {
@@ -155,5 +174,173 @@ document.addEventListener('DOMContentLoaded', () => {
   
   
   
-  // No auto-refresh needed - popup is short-lived and uses cached data
+  // Setup real-time status update connection
+  function setupStatusUpdateConnection() {
+    try {
+      // Create long-lived connection for real-time updates
+      statusUpdatePort = chrome.runtime.connect({ name: 'popup-status-updates' });
+      
+      // Listen for status updates from background script
+      statusUpdatePort.onMessage.addListener(async (message) => {
+        console.log('📨 Popup: Received status update:', message);
+        
+        if (message.type === 'STATUS_UPDATE') {
+          // Only update if this is for the current active tab
+          try {
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tab && tab.url === message.url) {
+              // Update popup status immediately (like React useState)
+              updatePopupStatus(message.data, message.url);
+            }
+          } catch (error) {
+            console.warn('Error checking current tab for status update:', error);
+          }
+        }
+      });
+      
+      // Handle connection disconnect
+      statusUpdatePort.onDisconnect.addListener(() => {
+        console.log('🔌 Popup: Status update connection disconnected');
+        statusUpdatePort = null;
+      });
+      
+      // Request current status for the active tab
+      requestCurrentTabStatus();
+      
+    } catch (error) {
+      console.error('❌ Popup: Failed to setup status connection:', error);
+    }
+  }
+  
+  // Request current tab status via the connection
+  async function requestCurrentTabStatus() {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab && tab.url && statusUpdatePort) {
+        statusUpdatePort.postMessage({
+          type: 'REQUEST_TAB_STATUS',
+          url: tab.url
+        });
+      }
+    } catch (error) {
+      console.error('❌ Popup: Failed to request tab status:', error);
+    }
+  }
+  
+  // Update popup status immediately (like React useState)
+  function updatePopupStatus(statusData, url = null) {
+    const statusElement = document.getElementById('indexingStatus');
+    const deleteBtn = document.getElementById('deletePageBtn');
+    if (!statusElement) return;
+    
+    let displayText = 'Ready';
+    let statusClass = 'status-value healthy';
+    
+    // Update current page data
+    if (url) currentPageData.url = url;
+    currentPageData.indexed = statusData.indexed || false;
+    currentPageData.pageId = statusData.pageId || null;
+    
+    if (statusData.indexed && !statusData.needsReindex) {
+      displayText = 'Indexed';
+      statusClass = 'status-value healthy';
+    } else if (statusData.indexed && statusData.needsReindex) {
+      displayText = 'Needs Update';
+      statusClass = 'status-value indexing';
+    } else if (statusData.indexing) {
+      displayText = 'Indexing...';
+      statusClass = 'status-value indexing';
+    }
+    
+    statusElement.textContent = displayText;
+    statusElement.className = statusClass;
+    
+    // Show/hide delete button based on indexed status
+    if (deleteBtn) {
+      if (currentPageData.indexed && currentPageData.pageId) {
+        deleteBtn.style.display = 'flex';
+      } else {
+        deleteBtn.style.display = 'none';
+      }
+    }
+    
+    console.log('✅ Popup: Status updated to:', displayText, 'Delete button:', currentPageData.indexed ? 'visible' : 'hidden');
+  }
+  
+  // Handle delete page button click
+  async function handleDeletePage() {
+    if (!currentPageData.pageId || !currentPageData.indexed) {
+      console.warn('No page to delete or page not indexed');
+      return;
+    }
+    
+    try {
+      console.log('Deleting page with ID:', currentPageData.pageId);
+      
+      // Use same API as newtab page
+      const response = await fetch(`http://localhost:8000/pages/${currentPageData.pageId}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        console.log('Page deleted successfully, ID:', currentPageData.pageId);
+        
+        // Invalidate extension cache for this page and update badge
+        if (currentPageData.url) {
+          try {
+            await chrome.runtime.sendMessage({
+              type: 'INVALIDATE_CACHE',
+              url: currentPageData.url
+            });
+            console.log('Extension cache invalidated for:', currentPageData.url);
+            
+            // Trigger badge update for current tab
+            await chrome.runtime.sendMessage({
+              type: 'UPDATE_BADGE',
+              url: currentPageData.url
+            });
+            console.log('Badge update requested for:', currentPageData.url);
+          } catch (error) {
+            console.warn('Failed to invalidate extension cache or update badge:', error);
+          }
+        }
+        
+        // Update UI immediately
+        currentPageData.indexed = false;
+        currentPageData.pageId = null;
+        updatePopupStatus({ indexed: false, needsReindex: false, indexing: false });
+        
+        // Show success feedback
+        const statusElement = document.getElementById('indexingStatus');
+        const originalText = statusElement.textContent;
+        const originalClass = statusElement.className;
+        
+        statusElement.textContent = 'Deleted';
+        statusElement.className = 'status-value';
+        statusElement.style.color = '#dc2626';
+        
+        setTimeout(() => {
+          statusElement.textContent = originalText;
+          statusElement.className = originalClass;
+          statusElement.style.color = '';
+        }, 2000);
+        
+      } else {
+        const errorText = await response.text();
+        console.error('Delete failed:', response.status, errorText);
+        alert('Failed to delete page');
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      alert('Failed to delete page: ' + error.message);
+    }
+  }
+  
+  // Cleanup connection when popup closes
+  window.addEventListener('beforeunload', () => {
+    if (statusUpdatePort) {
+      statusUpdatePort.disconnect();
+    }
+  });
+  
 });
