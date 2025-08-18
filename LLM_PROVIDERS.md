@@ -264,41 +264,6 @@ LOG_LEVEL=debug
 | **Groq** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ❌ |
 | **ARK** | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ✅ |
 
-## 🔄 Migration Guide
-
-### From ARK to OpenAI
-
-1. **Backup your current `.env`:**
-   ```bash
-   cp backend/.env backend/.env.ark.backup
-   ```
-
-2. **Update configuration:**
-   ```env
-   # Old ARK setup
-   ARK_API_TOKEN=your-ark-token
-   
-   # New OpenAI setup
-   API_TOKEN=sk-your-openai-key
-   LLM_PROVIDER=openai
-   EMBEDDING_PROVIDER=openai
-   ```
-
-3. **Test the change:**
-   ```bash
-   docker compose restart backend
-   curl http://localhost:8000/health
-   ```
-
-### Rollback Plan
-
-Keep your ARK configuration in `.env.ark`:
-
-```bash
-# Quick rollback
-cp backend/.env.ark backend/.env
-docker compose restart backend
-```
 
 ## 🔐 Security Best Practices
 

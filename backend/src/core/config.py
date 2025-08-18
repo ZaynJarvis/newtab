@@ -115,14 +115,20 @@ class Settings(BaseSettings):
         description="Query cache TTL in days"
     )
     query_cache_file: str = Field(
-        default="query_embeddings_cache.json",
-        description="Query cache file name"
+        default="/app/data/query_embeddings_cache.json",
+        description="Query cache file path (must be in /app/data for persistence)"
     )
     
     # Database Configuration
     database_file: str = Field(
-        default="web_memory.db",
-        description="SQLite database file name"
+        default="/app/data/web_memory.db",
+        description="SQLite database file path (must be in /app/data for persistence)"
+    )
+    
+    # Logging Configuration
+    log_file: Optional[str] = Field(
+        default="/app/logs/newtab.log",
+        description="Log file path (must be in /app/logs for persistence)"
     )
     
     
@@ -180,6 +186,44 @@ class Settings(BaseSettings):
         if v.lower() not in valid_levels:
             raise ValueError(f"log_level must be one of {valid_levels}")
         return v.lower()
+    
+    @field_validator("database_file")
+    @classmethod
+    def validate_database_file(cls, v: str) -> str:
+        """Ensure database file is in the mounted data directory for persistence."""
+        if not v.startswith("/app/data/"):
+            # If it's just a filename, prepend the mount path
+            if "/" not in v:
+                return f"/app/data/{v}"
+            else:
+                raise ValueError("database_file must be in /app/data/ directory for persistence")
+        return v
+    
+    @field_validator("log_file")
+    @classmethod
+    def validate_log_file(cls, v: Optional[str]) -> Optional[str]:
+        """Ensure log file is in the mounted logs directory for persistence."""
+        if v is None:
+            return v
+        if not v.startswith("/app/logs/"):
+            # If it's just a filename, prepend the mount path
+            if "/" not in v:
+                return f"/app/logs/{v}"
+            else:
+                raise ValueError("log_file must be in /app/logs/ directory for persistence")
+        return v
+    
+    @field_validator("query_cache_file")
+    @classmethod
+    def validate_query_cache_file(cls, v: str) -> str:
+        """Ensure query cache file is in the mounted data directory for persistence."""
+        if not v.startswith("/app/data/"):
+            # If it's just a filename, prepend the mount path
+            if "/" not in v:
+                return f"/app/data/{v}"
+            else:
+                raise ValueError("query_cache_file must be in /app/data/ directory for persistence")
+        return v
     
     def get_llm_api_token(self) -> str:
         """Get the API token for LLM provider (specific token or fallback to default)."""

@@ -15,28 +15,19 @@ if TYPE_CHECKING:
 class MultiProviderAPIClient:
     """Multi-provider client for LLM and embedding services."""
     
-    def __init__(self, config: Optional["Settings"] = None, api_key: Optional[str] = None):
+    def __init__(self, config: "Settings"):
         self.logger = get_logger(__name__)
         self.config = config
         
-        if config:
-            # Use new configuration system
-            self.llm_provider, self.embedding_provider = ProviderFactory.create_providers(config)
-            
-            # Initialize query embedding cache with config
-            self.query_cache = QueryEmbeddingCache(
-                capacity=config.query_cache_capacity,
-                cache_file=config.query_cache_file,
-                ttl_days=config.query_cache_ttl_days
-            )
-        else:
-            # Fallback to old system for backward compatibility
-            # This maintains compatibility with existing code that doesn't use config
-            from src.services.api_client import ArkAPIClient
-            self._legacy_client = ArkAPIClient(api_key=api_key)
-            self.llm_provider = None
-            self.embedding_provider = None
-            self.query_cache = self._legacy_client.query_cache if hasattr(self._legacy_client, 'query_cache') else None
+        # Use multi-provider configuration system
+        self.llm_provider, self.embedding_provider = ProviderFactory.create_providers(config)
+        
+        # Initialize query embedding cache with config
+        self.query_cache = QueryEmbeddingCache(
+            capacity=config.query_cache_capacity,
+            cache_file=config.query_cache_file,
+            ttl_days=config.query_cache_ttl_days
+        )
     
     async def generate_keywords_and_description(self, title: str, content: str) -> Dict[str, str]:
         """
@@ -49,11 +40,7 @@ class MultiProviderAPIClient:
         Returns:
             Dict with 'keywords', 'description', and 'improved_title' fields
         """
-        # Use legacy client for backward compatibility
-        if hasattr(self, '_legacy_client'):
-            return await self._legacy_client.generate_keywords_and_description(title, content)
-        
-        # Use new provider system
+        # Use provider system
         if not self.llm_provider:
             self.logger.warning("No LLM provider available, returning fallback response")
             return {
@@ -95,10 +82,6 @@ class MultiProviderAPIClient:
         Returns:
             List of float values representing the embedding vector
         """
-        # Use legacy client for backward compatibility
-        if hasattr(self, '_legacy_client'):
-            return await self._legacy_client.generate_embedding(text)
-        
         # Truncate text to avoid API limits
         max_text_length = 3000
         if len(text) > max_text_length:
@@ -184,10 +167,6 @@ class MultiProviderAPIClient:
     
     async def health_check(self) -> Dict[str, Any]:
         """Check if the API providers are accessible with timeout protection."""
-        # Use legacy client for backward compatibility
-        if hasattr(self, '_legacy_client'):
-            return await self._legacy_client.health_check()
-        
         health_status = {
             "status": "healthy",
             "timestamp": datetime.now().isoformat(),
@@ -243,18 +222,12 @@ class MultiProviderAPIClient:
     
     def get_cache_stats(self) -> Dict[str, Any]:
         """Get query embedding cache statistics."""
-        if hasattr(self, '_legacy_client'):
-            return self._legacy_client.get_cache_stats()
-        
         if self.query_cache:
             return self.query_cache.get_stats()
         return {"error": "No cache available"}
     
     def clear_cache(self) -> bool:
         """Clear query embedding cache."""
-        if hasattr(self, '_legacy_client'):
-            return self._legacy_client.clear_cache()
-        
         if self.query_cache:
             self.query_cache.clear()
             return True
@@ -262,18 +235,12 @@ class MultiProviderAPIClient:
     
     def cleanup_cache(self) -> int:
         """Clean up expired cache entries. Returns number of removed entries."""
-        if hasattr(self, '_legacy_client'):
-            return self._legacy_client.cleanup_cache()
-        
         if self.query_cache:
             return self.query_cache.cleanup_expired()
         return 0
     
     def get_top_cached_queries(self, limit: int = 10) -> List[Dict[str, Any]]:
         """Get most frequently cached queries for debugging."""
-        if hasattr(self, '_legacy_client'):
-            return self._legacy_client.get_top_cached_queries(limit)
-        
         if self.query_cache:
             return self.query_cache.get_top_queries(limit)
         return []

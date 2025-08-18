@@ -103,3 +103,11 @@ class CachedQueryResponse(BaseModel):
     access_count: int
     last_accessed: str
     created_at: str
+
+
+class ProbeResponse(BaseModel):
+    """Model for probe API response to check if URL is indexed."""
+    indexed: bool
+    page_id: Optional[int] = None
+    last_updated: Optional[datetime] = None
+    needs_reindex: bool = False

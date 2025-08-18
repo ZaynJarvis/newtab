@@ -104,39 +104,66 @@
   // Main function to process the page
   function processPage() {
     if (!shouldIndexPage()) {
-      console.log('Page skipped: not eligible for indexing');
+      console.log('Page skipped - not eligible for indexing');
       return;
     }
     
     // Check if user has been on page for at least 5 seconds
     const visitDuration = Date.now() - pageStartTime;
     if (visitDuration < 5000) {
-      console.log('Page skipped: visit duration too short');
+      console.log('Page skipped - visit duration too short');
       return;
     }
     
-    const content = extractPageContent();
-    const metadata = extractMetadata();
-    
-    // Send data to service worker
+    // First, probe to check if page is already indexed
     chrome.runtime.sendMessage({
-      type: 'INDEX_PAGE',
-      data: {
-        url: window.location.href,
-        title: metadata.title,
-        content: content,
-        metaDescription: metadata.metaDescription,
-        favicon_url: metadata.faviconUrl,
-        timestamp: new Date().toISOString()
-      }
-    }, (response) => {
+      type: 'PROBE_PAGE',
+      url: window.location.href
+    }, (probeResponse) => {
       if (chrome.runtime.lastError) {
-        console.error('Error sending page data:', chrome.runtime.lastError);
-      } else if (response?.success) {
-        console.log('Page indexed successfully:', response.message);
-      } else if (response?.error) {
-        console.error('Failed to index page:', response.error);
+        console.error('Error probing page:', chrome.runtime.lastError);
+        return;
       }
+      
+      if (!probeResponse?.success) {
+        console.log('Probe failed:', probeResponse?.error);
+        return;
+      }
+      
+      // If page is indexed and doesn't need re-indexing, we're done
+      // (visit tracking already happened in the probe endpoint)
+      if (probeResponse.indexed && !probeResponse.needsReindex) {
+        console.log('Page already indexed and up to date');
+        return;
+      }
+      
+      // Page needs indexing (either new or needs re-index)
+      console.log(probeResponse.indexed ? 'Page needs re-indexing' : 'Page not indexed, indexing now');
+      
+      const content = extractPageContent();
+      const metadata = extractMetadata();
+      
+      // Send data to service worker for full indexing
+      console.log('Indexing page with content length:', content.length);
+      chrome.runtime.sendMessage({
+        type: 'INDEX_PAGE',
+        data: {
+          url: window.location.href,
+          title: metadata.title,
+          content: content,
+          metaDescription: metadata.metaDescription,
+          favicon_url: metadata.faviconUrl,
+          timestamp: new Date().toISOString()
+        }
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('Error sending page data:', chrome.runtime.lastError);
+        } else if (response?.success) {
+          console.log('Page indexed successfully:', response.message);
+        } else if (response?.error) {
+          console.error('Failed to index page:', response.error);
+        }
+      });
     });
   }
 
@@ -146,6 +173,7 @@
       return;
     }
     isProcessingScheduled = true;
+    console.log('Page processing scheduled for 5 seconds');
     
     // Increased delay to 5 seconds to allow dynamic content to load
     // and ensure user is actively reading the page
@@ -154,7 +182,7 @@
       if (window.location.href === document.URL) {
         processPage();
       } else {
-        console.log('Page skipped: user navigated away');
+        console.log('Page skipped - user navigated away');
       }
       isProcessingScheduled = false;
     }, 5000);

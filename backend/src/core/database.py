@@ -40,6 +40,11 @@ class Database:
         self.max_pages = max_pages
         self.eviction_policy = ARCEvictionPolicy()
         self.logger = get_logger(__name__)
+        
+        # Ensure database directory exists
+        db_dir = Path(self.db_path).parent
+        db_dir.mkdir(parents=True, exist_ok=True)
+        
         self.init_database()
     
     def get_connection(self) -> sqlite3.Connection:

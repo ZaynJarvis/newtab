@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.core.database import Database
 from src.core.models import PageCreate
 from src.services.vector_store import VectorStore
-from src.services.api_client import ArkAPIClient
+from src.services.multi_provider_client import MultiProviderAPIClient
 from src.core.config import settings
 
 
@@ -90,7 +90,7 @@ async def seed_database():
         # Initialize API client if token is available
         ark_client = None
         try:
-            ark_client = ArkAPIClient(settings)
+            ark_client = MultiProviderAPIClient(settings)
             print("✅ API client initialized - will generate real embeddings")
         except Exception as e:
             print(f"⚠️  API client failed to initialize: {e}")
@@ -178,7 +178,7 @@ def main():
         print("  uv run python scripts/seed_data.py")
         print("")
         print("Environment:")
-        print("  ARK_API_TOKEN - ByteDance ARK API token (optional)")
+        print("  API_TOKEN - API token for providers (optional)")
         print("                  If not set, will use mock embeddings")
         print("")
         print("Sample pages include:")

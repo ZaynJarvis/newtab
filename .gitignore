@@ -12,13 +12,27 @@ backend/query_embeddings_cache.tmp
 # Environment files
 .env
 backend/.env
-backend/.env.ark
 
 # Data directories
 data/backend/*
 !data/backend/.gitkeep
 data/logs/*
 !data/logs/.gitkeep
+
+# Log files and directories
+logs/
+*.log
+
+# Debug and test files
+test-*.html
+*-debug.html
+
+# Documentation files created during development
+CLAUDE.md
+CLEANUP_PLAN.md
+
+# Backend environment backup
+backend/.env.ark
 
 # Docker volumes
 docker-volumes/

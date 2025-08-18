@@ -18,7 +18,6 @@ from src.core.exceptions import (
     http_exception_handler_with_logging,
     validation_exception_handler
 )
-from src.services.api_client import ArkAPIClient
 from src.services.multi_provider_client import MultiProviderAPIClient
 from src.services.provider_factory import ProviderFactory
 from src.core.database import Database
@@ -39,8 +38,7 @@ logger = get_logger(__name__)
 try:
     config = settings
     logger.info("Configuration loaded successfully", extra={
-        "llm_api_token_prefix": config.llm_api_token[:8] + "...",
-        "embedding_api_token_prefix": config.embedding_api_token[:8] + "...",
+        "api_token_prefix": config.api_token[:8] + "...",
         "llm_provider": config.llm_provider,
         "embedding_provider": config.embedding_provider,
         "host": config.host,

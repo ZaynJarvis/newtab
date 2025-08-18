@@ -2,7 +2,7 @@
 # Multi-stage build for optimized production image
 
 # Build stage
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -29,7 +29,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
 # Production stage
-FROM python:3.11-slim as production
+FROM python:3.11-slim AS production
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -82,6 +82,11 @@ if [ -z "$QUERY_CACHE_FILE" ]; then
     export QUERY_CACHE_FILE="/app/data/query_embeddings_cache.json"
 fi
 
+# Set log file to persistent volume if not specified
+if [ -z "$LOG_FILE" ]; then
+    export LOG_FILE="/app/logs/newtab.log"
+fi
+
 # Ensure data directory exists and is writable
 mkdir -p /app/data /app/logs
 chmod 755 /app/data /app/logs
@@ -94,6 +99,7 @@ echo "Log Level: $LOG_LEVEL"
 echo "Workers: $WORKERS"
 echo "Database: $DATABASE_FILE"
 echo "Cache File: $QUERY_CACHE_FILE"
+echo "Log File: $LOG_FILE"
 echo "API Token: ${ARK_API_TOKEN:0:8}..."
 
 # Set PYTHONPATH to include the app directory

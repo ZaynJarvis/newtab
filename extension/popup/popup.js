@@ -1,61 +1,67 @@
 // Popup script for status display and controls
+
+// Utility function to send messages with timeout to prevent blocking
+function sendMessageWithTimeout(message, timeoutMs = 2000) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error(`Message timeout after ${timeoutMs}ms`));
+    }, timeoutMs);
+    
+    chrome.runtime.sendMessage(message, (response) => {
+      clearTimeout(timeout);
+      
+      // Check for runtime errors
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      
+      resolve(response);
+    });
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // Get DOM elements
   const indexingToggle = document.getElementById('indexingToggle');
   const toggleLabel = document.getElementById('toggleLabel');
-  const backendStatus = document.getElementById('backendStatus');
-  const pagesIndexed = document.getElementById('pagesIndexed');
   const indexingStatus = document.getElementById('indexingStatus');
-  const lastIndexedInfo = document.getElementById('lastIndexedInfo');
-  const openNewTabBtn = document.getElementById('openNewTab');
-  const openSettingsBtn = document.getElementById('openSettings');
   
   // Load current status
   loadStatus();
   
   // Set up event listeners
   indexingToggle.addEventListener('change', handleToggleChange);
-  openNewTabBtn.addEventListener('click', openNewTab);
-  openSettingsBtn.addEventListener('click', openSettings);
   
-  // Load status from service worker
+  // Load status from service worker and backend
   async function loadStatus() {
     try {
-      const response = await chrome.runtime.sendMessage({ type: 'GET_STATUS' });
+      const response = await sendMessageWithTimeout({ type: 'GET_STATUS' }, 3000); // Increased timeout for health check
       
       // Update toggle
       indexingToggle.checked = response.indexingEnabled;
       toggleLabel.textContent = response.indexingEnabled ? 'Indexing Enabled' : 'Indexing Disabled';
       
-      // Update backend status
-      backendStatus.textContent = capitalizeFirst(response.backendStatus);
-      backendStatus.className = 'value ' + response.backendStatus;
+      // Update indexing status (probe API will determine backend health)
+      await updateIndexingStatus(response.indexingEnabled);
       
-      // Update pages indexed
-      pagesIndexed.textContent = response.totalPagesIndexed.toLocaleString();
-      
-      // Update indexing status
-      const statusText = response.indexingStatus === 'indexing' ? 'Indexing...' : capitalizeFirst(response.indexingStatus);
-      indexingStatus.textContent = statusText;
-      indexingStatus.className = 'value ' + response.indexingStatus;
-      
-      // Update last indexed info
-      if (response.lastIndexedUrl) {
-        const timeAgo = response.lastIndexedTime ? formatTimeAgo(new Date(response.lastIndexedTime)) : 'Unknown';
-        lastIndexedInfo.innerHTML = `
-          <div class="url" title="${response.lastIndexedUrl}">${truncateUrl(response.lastIndexedUrl)}</div>
-          <div class="time">${timeAgo}</div>
-        `;
-      } else {
-        lastIndexedInfo.innerHTML = '<p class="no-data">No pages indexed yet</p>';
-      }
       
     } catch (error) {
       console.error('Error loading status:', error);
-      backendStatus.textContent = 'Error';
-      backendStatus.className = 'value offline';
+      
+      // Show fallback state - assume enabled by default (better UX)
+      indexingToggle.checked = true; // Default to enabled when communication fails
+      toggleLabel.textContent = 'Indexing Enabled';
+      
+      // Show minimal "Ready" status instead of "Failed" to avoid confusion
+      const statusElement = document.getElementById('indexingStatus');
+      statusElement.textContent = 'Ready';
+      statusElement.className = 'status-value healthy';
+      
+      console.warn('Using fallback UI state due to communication error');
     }
   }
+  
   
   // Handle indexing toggle change
   async function handleToggleChange(e) {
@@ -68,79 +74,86 @@ document.addEventListener('DOMContentLoaded', () => {
     settings.indexingEnabled = enabled;
     await chrome.storage.local.set({ localWebMemory: settings });
     
-    // Show feedback
-    if (!enabled) {
-      indexingStatus.textContent = 'Disabled';
-      indexingStatus.className = 'value';
+    // Reload status when indexing is toggled
+    setTimeout(() => loadStatus(), 100);
+  }
+  
+  // Update indexing status display (probe API determines everything)
+  async function updateIndexingStatus(indexingEnabled) {
+    const statusElement = indexingStatus;
+    let displayText = '';
+    let statusClass = '';
+    
+    if (!indexingEnabled) {
+      displayText = 'Disabled';
+      statusClass = 'status-value disabled';
+    } else {
+      // Check current page status using probe API for immediate results
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tab && tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
+          // Request cached probe result for instant response with timeout
+          try {
+            const probeResponse = await sendMessageWithTimeout({
+              type: 'GET_CACHED_PROBE',
+              url: tab.url
+            }, 1000); // 1 second timeout
+            
+            if (probeResponse?.success) {
+              if (probeResponse.indexed && !probeResponse.needsReindex) {
+                displayText = 'Indexed';
+                statusClass = 'status-value healthy';
+              } else if (probeResponse.indexed && probeResponse.needsReindex) {
+                displayText = 'Needs Update';
+                statusClass = 'status-value indexing';
+              } else {
+                displayText = 'Ready';
+                statusClass = 'status-value healthy';
+              }
+              
+              // Cache usage handled silently
+            } else {
+              displayText = 'Ready';
+              statusClass = 'status-value healthy';
+            }
+          } catch (probeError) {
+            console.warn('Cached probe request failed:', probeError);
+            
+            // Determine status based on probe API failure type
+            if (probeError.message.includes('timeout') || probeError.message.includes('port closed')) {
+              // Communication issue with extension - show Ready (assume backend is fine)
+              displayText = 'Ready';
+              statusClass = 'status-value healthy';
+            } else {
+              // Unknown error - show Ready as fallback
+              displayText = 'Ready';
+              statusClass = 'status-value healthy';
+            }
+          }
+        } else {
+          displayText = 'Ready';
+          statusClass = 'status-value healthy';
+        }
+      } catch (error) {
+        console.error('Error checking page status:', error);
+        // Always show Ready as fallback when probe fails
+        displayText = 'Ready';
+        statusClass = 'status-value healthy';
+      }
     }
+    
+    statusElement.textContent = displayText;
+    statusElement.className = statusClass;
   }
   
-  // Open new tab for search
-  function openNewTab() {
-    chrome.tabs.create({ url: 'chrome://newtab' });
-    window.close();
-  }
-  
-  // Open settings (will be in new tab)
-  function openSettings() {
-    chrome.tabs.create({ url: 'chrome://newtab#settings' });
-    window.close();
-  }
-  
+
   // Utility functions
   function capitalizeFirst(str) {
     if (!str) return '';
     return str.charAt(0).toUpperCase() + str.slice(1);
   }
   
-  function truncateUrl(url) {
-    if (!url) return '';
-    try {
-      const urlObj = new URL(url);
-      const path = urlObj.pathname + urlObj.search;
-      const maxLength = 40;
-      
-      if (url.length <= maxLength) {
-        return url;
-      }
-      
-      const domain = urlObj.hostname;
-      if (domain.length >= maxLength - 3) {
-        return domain.substring(0, maxLength - 3) + '...';
-      }
-      
-      const remainingLength = maxLength - domain.length - 3;
-      if (path.length > remainingLength) {
-        return domain + path.substring(0, remainingLength) + '...';
-      }
-      
-      return domain + path;
-    } catch (e) {
-      return url.substring(0, 40) + '...';
-    }
-  }
   
-  function formatTimeAgo(date) {
-    const seconds = Math.floor((new Date() - date) / 1000);
-    
-    if (seconds < 60) {
-      return 'Just now';
-    }
-    
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) {
-      return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
-    }
-    
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) {
-      return `${hours} hour${hours === 1 ? '' : 's'} ago`;
-    }
-    
-    const days = Math.floor(hours / 24);
-    return `${days} day${days === 1 ? '' : 's'} ago`;
-  }
   
-  // Refresh status every 5 seconds if popup stays open
-  setInterval(loadStatus, 5000);
+  // No auto-refresh needed - popup is short-lived and uses cached data
 });

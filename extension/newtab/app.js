@@ -40,7 +40,6 @@ function focusSearchInput() {
         
         // Verify focus was successful
         if (document.activeElement === searchInput) {
-          console.log(`Search input focused successfully on attempt ${focusAttempts + 1}`);
           return; // Success, stop attempting
         }
       } else {
@@ -518,16 +517,42 @@ async function deleteResult(id) {
     });
     
     if (response.ok) {
-      // Remove the card from UI
+      console.log('Page deleted successfully, ID:', id);
+      
+      // Get the URL from the card to invalidate extension cache
       const card = document.querySelector(`.result-card[data-id="${id}"]`);
+      let pageUrl = null;
       if (card) {
+        // Try to get URL from the card's link
+        const linkElement = card.querySelector('a[href]');
+        if (linkElement) {
+          pageUrl = linkElement.href;
+        }
+        
+        // Remove the card from UI
         card.style.animation = 'fadeOut 0.3s';
         setTimeout(() => card.remove(), 300);
+      }
+      
+      // Invalidate extension cache for this page
+      if (pageUrl) {
+        console.log('Invalidating extension cache for:', pageUrl);
+        try {
+          await chrome.runtime.sendMessage({
+            type: 'INVALIDATE_CACHE',
+            url: pageUrl
+          });
+          console.log('Extension cache invalidated');
+        } catch (error) {
+          console.warn('Failed to invalidate extension cache:', error);
+        }
       }
       
       // Update statistics
       loadStatistics();
     } else {
+      const errorText = await response.text();
+      console.error('Delete failed:', response.status, errorText);
       alert('Failed to delete entry');
     }
   } catch (error) {
@@ -662,16 +687,22 @@ function updateExcludedDomainsList() {
   const container = document.getElementById('excludedDomains');
   
   if (excludedDomains.length === 0) {
-    container.innerHTML = '<p class="settings-description">No domains excluded</p>';
+    container.innerHTML = `
+      <p class="settings-description">No domains excluded</p>
+      <p class="settings-help">Add domains below to prevent them from being indexed. Enter base domains like 'github.com' to block both 'github.com' and all subdomains like 'www.github.com', 'docs.github.com', etc.</p>
+    `;
     return;
   }
   
-  container.innerHTML = excludedDomains.map(domain => `
-    <div class="domain-item">
-      <span>${escapeHtml(domain)}</span>
-      <button class="remove-domain" data-domain="${escapeHtml(domain)}">×</button>
-    </div>
-  `).join('');
+  container.innerHTML = `
+    <p class="settings-help">Domains below are excluded from indexing. Subdomains are automatically included (e.g., 'github.com' blocks 'www.github.com').</p>
+    ${excludedDomains.map(domain => `
+      <div class="domain-item">
+        <span>${escapeHtml(domain)}</span>
+        <button class="remove-domain" data-domain="${escapeHtml(domain)}">×</button>
+      </div>
+    `).join('')}
+  `;
   
   // Add event listeners for remove buttons
   container.querySelectorAll('.remove-domain').forEach(btn => {
@@ -684,18 +715,37 @@ function updateExcludedDomainsList() {
 
 async function addExcludedDomain() {
   const input = document.getElementById('newDomain');
-  const domain = input.value.trim().toLowerCase();
+  let domain = input.value.trim().toLowerCase();
   
   if (!domain) return;
   
-  // Validate domain format
-  if (!/^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}$/i.test(domain)) {
-    alert('Please enter a valid domain (e.g., example.com)');
+  // Remove common prefixes for better UX
+  domain = domain.replace(/^(https?:\/\/)?(www\.)?/, '');
+  
+  // Remove trailing slash
+  domain = domain.replace(/\/$/, '');
+  
+  // Basic domain validation - more flexible than before
+  if (!/^[a-z0-9]+([\.\-][a-z0-9]+)*\.[a-z]{2,}$/i.test(domain)) {
+    alert('Please enter a valid domain (e.g., github.com, docs.example.org)');
     return;
   }
   
-  if (excludedDomains.includes(domain)) {
-    alert('Domain already excluded');
+  // Check for existing domain or parent domain
+  const existingMatch = excludedDomains.find(existing => {
+    return domain === existing || 
+           domain.endsWith('.' + existing) || 
+           existing.endsWith('.' + domain);
+  });
+  
+  if (existingMatch) {
+    if (existingMatch === domain) {
+      alert('Domain already excluded');
+    } else if (domain.endsWith('.' + existingMatch)) {
+      alert(`Domain already covered by excluded domain: ${existingMatch}`);
+    } else {
+      alert(`This would be redundant with existing domain: ${existingMatch}`);
+    }
     return;
   }
   
@@ -709,9 +759,23 @@ async function addExcludedDomain() {
     
     updateExcludedDomainsList();
     input.value = '';
+    
+    // Show success message with explanation
+    const helpText = document.querySelector('.settings-help');
+    if (helpText) {
+      const originalText = helpText.textContent;
+      helpText.textContent = `✓ Added ${domain} - this will block the domain and all its subdomains`;
+      helpText.style.color = '#16a34a';
+      setTimeout(() => {
+        helpText.textContent = originalText;
+        helpText.style.color = '';
+      }, 3000);
+    }
+    
   } catch (error) {
     console.error('Error saving settings:', error);
     excludedDomains.pop(); // Revert on error
+    alert('Failed to save domain exclusion');
   }
 }
 

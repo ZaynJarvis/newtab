@@ -9,7 +9,6 @@
 <body>
   <div class="popup-container">
     <header>
-      <h1>Local Web Memory</h1>
       <div class="toggle-container">
         <label class="toggle">
           <input type="checkbox" id="indexingToggle" checked>
@@ -19,47 +18,16 @@
       </div>
     </header>
     
-    <section class="status-section">
-      <h2>Status</h2>
-      <div class="status-grid">
-        <div class="status-item">
-          <span class="label">Backend:</span>
-          <span id="backendStatus" class="value">Checking...</span>
-        </div>
-        <div class="status-item">
-          <span class="label">Pages Indexed:</span>
-          <span id="pagesIndexed" class="value">0</span>
-        </div>
-        <div class="status-item">
-          <span class="label">Current Status:</span>
-          <span id="indexingStatus" class="value">Idle</span>
+    
+    <section class="indexing-status">
+      <div class="status-display">
+        <div class="status-main">
+          <span class="status-value" id="indexingStatus">Checking</span>
+          <span class="status-label">Indexing Status</span>
         </div>
       </div>
     </section>
     
-    <section class="last-indexed">
-      <h2>Last Indexed</h2>
-      <div id="lastIndexedInfo" class="last-indexed-info">
-        <p class="no-data">No pages indexed yet</p>
-      </div>
-    </section>
-    
-    <section class="actions">
-      <button id="openNewTab" class="btn btn-primary">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"/>
-          <path d="m21 21-4.35-4.35"/>
-        </svg>
-        Search History
-      </button>
-      <button id="openSettings" class="btn btn-secondary">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M12 1v6m0 6v6m4.22-13.22 4.24 4.24M18.36 18.36l4.24 4.24M20.5 12H23m-6 0h6M4.22 19.78l4.24-4.24M1.5 12H4m2.5 0H4"/>
-        </svg>
-        Settings
-      </button>
-    </section>
   </div>
   
   <script src="popup.js"></script>

@@ -24,7 +24,7 @@ services:
         max-file: "3"
     networks:
       - default
-      - newtab-monitoring
+      - monitoring
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -33,6 +33,6 @@ services:
       start_period: 40s
 
 networks:
-  newtab-monitoring:
-    external: true
-    name: newtab-monitoring
+  monitoring:
+    external: false
+    name: monitoring

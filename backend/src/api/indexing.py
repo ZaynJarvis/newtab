@@ -3,7 +3,7 @@
 import time
 from typing import List
 from fastapi import APIRouter, HTTPException, BackgroundTasks
-from src.core.models import PageCreate, PageResponse, IndexResponse
+from src.core.models import PageCreate, PageResponse, IndexResponse, ProbeResponse
 from src.core.logging import get_logger
 
 
@@ -152,18 +152,63 @@ async def get_page(page_id: int):
     return page
 
 
+@router.get("/probe", response_model=ProbeResponse)
+async def probe_page(url: str):
+    """Probe if a page is already indexed without full processing."""
+    try:
+        # Check if URL exists and needs re-indexing
+        needs_reindex, existing_id = db.check_needs_reindex(url)
+        
+        if existing_id:
+            # Page exists, update visit metrics
+            db.update_visit_metrics(existing_id)
+            
+            # Get last updated time
+            page = db.get_page_by_id(existing_id)
+            last_updated = page.last_updated_at if page else None
+            
+            return ProbeResponse(
+                indexed=True,
+                page_id=existing_id,
+                last_updated=last_updated,
+                needs_reindex=needs_reindex
+            )
+        else:
+            # Page doesn't exist
+            return ProbeResponse(
+                indexed=False,
+                page_id=None,
+                last_updated=None,
+                needs_reindex=False
+            )
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Probe failed: {str(e)}")
+
+
 @router.delete("/pages/{page_id}", response_model=dict)
 async def delete_page(page_id: int):
     """Delete a specific page by ID."""
     try:
+        logger.info(f"🗑️ Delete request received for page ID: {page_id}")
+        
+        # Get page info before deletion for logging
+        page_info = db.get_page_by_id(page_id)
+        if page_info:
+            logger.info(f"🗑️ Deleting page: {page_info.title} - {page_info.url}")
+        
         # Remove from vector store
         vector_store.remove_vector(page_id)
+        logger.info(f"🗑️ Removed page {page_id} from vector store")
         
         # Remove from database
         deleted = db.delete_page(page_id)
         
         if not deleted:
+            logger.warning(f"❌ Page {page_id} not found in database")
             raise HTTPException(status_code=404, detail="Page not found")
+        
+        logger.info(f"✅ Page {page_id} deleted successfully from database")
         
         return {
             "status": "deleted",
@@ -174,4 +219,5 @@ async def delete_page(page_id: int):
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"❌ Failed to delete page {page_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to delete page: {str(e)}")

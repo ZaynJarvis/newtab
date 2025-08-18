@@ -115,8 +115,8 @@ services:
 networks:
   monitoring:
     driver: bridge
-    name: newtab-monitoring
-    external: false
+    name: monitoring
+    external: true
 
 volumes:
   prometheus_data:
